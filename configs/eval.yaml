@@ -3,8 +3,16 @@
 judge:
   # DeepEval metrics call this model via LM Studio's OpenAI-compatible API.
   # base_url and api_key are read from configs/default.yaml → lm_studio.
-  model: "qwen/qwen3-14b"
+  model: "qwen/qwen3.5-35b-a3b"
   temperature: 0
+  # Forwarded to chat.completions.create. For vLLM / servers that honor Qwen's template flags,
+  # extra_body.chat_template_kwargs disables chain-of-thought at the engine. LM Studio's
+  # documented OpenAI payload is smaller and may ignore extra_body; the judge strips
+  # Qwen-style think/thinking fenced blocks from model output before JSON parsing.
+  generation_kwargs:
+    extra_body:
+      chat_template_kwargs:
+        enable_thinking: false
 
 metrics:
   # Core RAG metrics (DeepEval built-in)
