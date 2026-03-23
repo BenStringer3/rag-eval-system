@@ -25,6 +25,9 @@ data/embeddings/umap_cache/
 # DeepEval
 .deepeval/
 
+# Batch eval reports (scripts/run_eval_report.py)
+artifacts/eval_runs/
+
 # OS
 .DS_Store
 Thumbs.db

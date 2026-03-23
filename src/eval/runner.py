@@ -9,6 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from deepeval import evaluate
+from deepeval.evaluate.configs import DisplayConfig
 
 from src.data.schemas import EvalReport, EvalResult, MetricScore
 from src.eval.datasets import load_eval_dataset, to_deepeval_test_cases
@@ -58,26 +59,33 @@ def run_evaluation(
     # Generate pipeline outputs for each sample
     test_cases = to_deepeval_test_cases(dataset, pipeline.query_for_eval)
 
-    # Run DeepEval evaluation (mutates metric objects with scores)
-    evaluate(test_cases, metrics, print_results=verbose)
+    evaluation_result = evaluate(
+        test_cases,
+        metrics,
+        display_config=DisplayConfig(print_results=verbose),
+    )
 
-    # Convert to our EvalReport format
+    if len(evaluation_result.test_results) != len(dataset.samples):
+        raise RuntimeError(
+            "DeepEval result count mismatch: "
+            f"{len(evaluation_result.test_results)} vs {len(dataset.samples)} samples"
+        )
+
     results = []
-    for i, (sample, test_case) in enumerate(zip(dataset.samples, test_cases)):
+    for sample, test_case, test_result in zip(
+        dataset.samples, test_cases, evaluation_result.test_results
+    ):
         scores = []
-        for metric in metrics:
-            # After evaluate(), each metric has .score and .reason populated
-            # for the last test case. We need to re-measure for each.
-            # Note: In practice, evaluate() handles this internally.
-            mscore = getattr(metric, "score", None)
-            has_score = hasattr(metric, "score") and mscore is not None
+        for md in test_result.metrics_data or []:
+            mscore = md.score if md.score is not None else 0.0
+            reason = md.reason or md.error
             scores.append(
                 MetricScore(
-                    metric_name=metric.__class__.__name__,
-                    score=mscore if has_score else 0.0,
-                    threshold=metric.threshold,
-                    passed=(mscore >= metric.threshold) if has_score else False,
-                    reason=getattr(metric, "reason", None),
+                    metric_name=md.name,
+                    score=mscore,
+                    threshold=md.threshold,
+                    passed=md.success,
+                    reason=reason,
                 )
             )
 
@@ -85,7 +93,7 @@ def run_evaluation(
             EvalResult(
                 sample_id=sample.id,
                 query=sample.query,
-                generated_answer=test_case.actual_output,
+                generated_answer=test_case.actual_output or "",
                 retrieval_context=test_case.retrieval_context or [],
                 expected_answer=sample.expected_answer,
                 scores=scores,
