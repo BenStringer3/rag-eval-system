@@ -40,15 +40,17 @@ metrics:
     criteria: "Does the response accurately describe the structure/flow shown in the diagram?"
 
 datasets:
-  # Starter eval dataset shipped with the project
+  # Each entry is a JSON file (see data/eval_datasets/*.json). run_eval_report.py runs
+  # every dataset unless --dataset is set. Set enabled: false to skip one.
   starter:
+    enabled: false
     path: "data/eval_datasets/starter.json"
     description: "Hand-curated Q&A pairs for initial baseline"
 
-  # Placeholder for future synthetic dataset
-  # synthetic:
-  #   path: "data/eval_datasets/synthetic.json"
-  #   description: "LLM-generated eval pairs via DeepEval synthesizer"
+  synthetic:
+    enabled: true
+    path: "data/eval_datasets/synthetic.json"
+    description: "Extra corpus-grounded pairs; can be replaced by DeepEval synthesizer output"
 
 visualization:
   umap:
