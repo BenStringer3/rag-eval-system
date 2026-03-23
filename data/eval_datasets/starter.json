@@ -1,0 +1,42 @@
+{
+  "name": "starter",
+  "description": "Minimal hand-curated Q&A pairs for smoke testing the eval pipeline. Replace with corpus-specific pairs once documents are ingested.",
+  "version": "0.1.0",
+  "samples": [
+    {
+      "id": "q001",
+      "query": "What is this project about?",
+      "expected_answer": "This project is a local RAG system with evaluation infrastructure built on DeepEval, designed for iterative improvement.",
+      "expected_context": null,
+      "metadata": {"category": "general", "difficulty": "easy"}
+    },
+    {
+      "id": "q002",
+      "query": "How are documents chunked in this system?",
+      "expected_answer": "Documents are split using recursive character splitting with document-type-aware separators. Markdown splits on headings, code splits on class and function boundaries, and mermaid diagrams are kept whole when possible.",
+      "expected_context": null,
+      "metadata": {"category": "architecture", "difficulty": "medium"}
+    },
+    {
+      "id": "q003",
+      "query": "What embedding model is used and why?",
+      "expected_answer": "The system uses nomic-embed-text via Ollama. It was chosen for its small memory footprint (137M params), 8K token context window, and 768-dimensional embeddings, leaving plenty of VRAM for the generation model.",
+      "expected_context": null,
+      "metadata": {"category": "architecture", "difficulty": "easy"}
+    },
+    {
+      "id": "q004",
+      "query": "How does the evaluation system work?",
+      "expected_answer": "The evaluation system uses DeepEval with a local Ollama model as the LLM judge. It measures faithfulness, answer relevancy, contextual precision, and contextual recall. Custom G-Eval metrics can be added for domain-specific evaluation.",
+      "expected_context": null,
+      "metadata": {"category": "evaluation", "difficulty": "medium"}
+    },
+    {
+      "id": "q005",
+      "query": "What vector store does this project use?",
+      "expected_answer": "The project uses ChromaDB with persistent on-disk storage and cosine similarity search.",
+      "expected_context": null,
+      "metadata": {"category": "architecture", "difficulty": "easy"}
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+# Evaluation Configuration
+
+judge:
+  # The LLM used as evaluation judge (via Ollama)
+  model: "qwen3:14b"
+  temperature: 0
+
+metrics:
+  # Core RAG metrics (DeepEval built-in)
+  faithfulness:
+    enabled: true
+    threshold: 0.7
+  answer_relevancy:
+    enabled: true
+    threshold: 0.7
+  contextual_precision:
+    enabled: true
+    threshold: 0.6
+  contextual_recall:
+    enabled: true
+    threshold: 0.6
+
+  # Custom metrics (extend in src/eval/metrics.py)
+  code_accuracy:
+    enabled: false  # Enable in phase 2
+    threshold: 0.8
+    criteria: "Does the response contain syntactically correct code that matches the query intent?"
+  diagram_fidelity:
+    enabled: false  # Enable in phase 2
+    threshold: 0.7
+    criteria: "Does the response accurately describe the structure/flow shown in the diagram?"
+
+datasets:
+  # Starter eval dataset shipped with the project
+  starter:
+    path: "data/eval_datasets/starter.json"
+    description: "Hand-curated Q&A pairs for initial baseline"
+
+  # Placeholder for future synthetic dataset
+  # synthetic:
+  #   path: "data/eval_datasets/synthetic.json"
+  #   description: "LLM-generated eval pairs via DeepEval synthesizer"
+
+visualization:
+  umap:
+    n_neighbors: 15
+    min_dist: 0.1
+    n_components: 3  # 3D projection
+    metric: "cosine"
+  cache_embeddings: true
+  cache_dir: "data/embeddings/umap_cache"

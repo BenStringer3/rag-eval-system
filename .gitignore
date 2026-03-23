@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Data (large files)
+data/embeddings/
+data/embeddings/chromadb/
+data/embeddings/umap_cache/
+
+# DeepEval
+.deepeval/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local

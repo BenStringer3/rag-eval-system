@@ -1,0 +1,52 @@
+# RAG Pipeline Configuration
+# All models run locally via Ollama
+
+embedding:
+  model: "nomic-embed-text"
+  dimensions: 768
+  # Prefix tokens required by nomic-embed-text
+  query_prefix: "search_query: "
+  document_prefix: "search_document: "
+
+chunking:
+  strategy: "recursive"  # Options: recursive, semantic (phase 3)
+  chunk_size: 512
+  chunk_overlap: 64
+  # File-type-specific overrides
+  overrides:
+    markdown:
+      chunk_size: 512
+      chunk_overlap: 64
+      separators: ["\n## ", "\n### ", "\n\n", "\n", " "]
+    code:
+      chunk_size: 256
+      chunk_overlap: 32
+      separators: ["\nclass ", "\ndef ", "\n\n", "\n", " "]
+    mermaid:
+      chunk_size: 1024   # Mermaid diagrams should stay whole when possible
+      chunk_overlap: 0
+      separators: ["\n\n", "\n"]
+
+vector_store:
+  provider: "chromadb"
+  persist_directory: "./data/embeddings/chromadb"
+  collection_name: "rag_docs"
+  distance_metric: "cosine"
+
+retrieval:
+  top_k: 5
+  # score_threshold: 0.3  # Uncomment to filter low-relevance results
+
+generation:
+  model: "qwen3:14b"
+  temperature: 0.1
+  max_tokens: 1024
+  system_prompt: |
+    You are a helpful assistant that answers questions based on the provided context.
+    Always ground your answers in the retrieved context. If the context doesn't contain
+    enough information to answer, say so explicitly.
+
+    Context:
+    {context}
+
+    Question: {query}

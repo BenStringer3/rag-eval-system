@@ -1,0 +1,66 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "rag-eval-system"
+version = "0.1.0"
+description = "Local RAG system with DeepEval evaluation infrastructure"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+dependencies = [
+    # RAG pipeline
+    "chromadb>=0.5.0",
+    "ollama>=0.4.0",
+
+    # Document processing
+    "pyyaml>=6.0",
+
+    # Evaluation
+    "deepeval>=2.0.0",
+
+    # Visualization
+    "umap-learn>=0.5.0",
+    "plotly>=5.18.0",
+    "pandas>=2.1.0",
+    "numpy>=1.26.0",
+
+    # Data models
+    "pydantic>=2.5.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "ruff>=0.4.0",
+    "mypy>=1.8.0",
+    "ipykernel>=6.0.0",
+]
+phoenix = [
+    "arize-phoenix>=5.0.0",
+    "openinference-instrumentation>=0.1.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: marks tests that require GPU inference (deselect with '-m \"not slow\"')",
+    "eval: marks evaluation test suites (run with '-m eval')",
+]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
