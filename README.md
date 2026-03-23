@@ -124,18 +124,18 @@ rag-eval-system/
 
 ## Phase Roadmap
 
-### Phase 1 — Foundation (current)
+### Phase 1 — Foundation ✓
 - [x] Project scaffold
-- [ ] Simple chunker (recursive text splitting)
-- [ ] Local embeddings via LM Studio (Nomic embed)
-- [ ] ChromaDB vector store
-- [ ] Basic cosine similarity retrieval
-- [ ] LM Studio chat generation
-- [ ] DeepEval judge via LM Studio (GPTModel + base_url)
-- [ ] Starter eval dataset (hand-written, ~20-30 Q&A pairs)
-- [ ] UMAP embedding visualization
+- [x] Simple chunker (recursive text splitting)
+- [x] Local embeddings via LM Studio (Nomic embed)
+- [x] ChromaDB vector store
+- [x] Basic cosine similarity retrieval
+- [x] LM Studio chat generation
+- [x] DeepEval judge via LM Studio (GPTModel + base_url)
+- [x] Starter eval dataset (hand-written Q&A pairs)
+- [x] UMAP embedding visualization
 
-### Phase 2 — Evaluation Depth
+### Phase 2 — Evaluation Depth (current)
 - [ ] Custom G-Eval metrics for code/diagram accuracy
 - [ ] Synthetic eval data generation (DeepEval synthesizer)
 - [ ] Arize Phoenix integration for cluster analysis
