@@ -15,16 +15,16 @@ The system consists of three main layers:
 
 Documents are loaded from a corpus directory, split into chunks using recursive
 character splitting with document-type-aware separators, embedded using
-nomic-embed-text via Ollama, and stored in a ChromaDB vector store.
+a Nomic embedding model via LM Studio (OpenAI-compatible API), and stored in a ChromaDB vector store.
 
 When a query arrives, it is embedded with the same model (using a query-specific
 prefix), and the most similar chunks are retrieved via cosine similarity search.
-These chunks are then passed as context to a local LLM (qwen3:14b) which generates
+These chunks are then passed as context to a local chat model served by LM Studio (see `configs/default.yaml`) which generates
 a grounded response.
 
 ### Evaluation Layer
 
-The evaluation layer uses DeepEval with a local Ollama model as the LLM judge.
+The evaluation layer uses DeepEval with a local LLM judge served by LM Studio.
 It measures four core metrics:
 
 - **Faithfulness**: Is the answer grounded in the retrieved context?
@@ -62,7 +62,7 @@ diagram exceeds the chunk size, it is split on double-newline boundaries.
 
 ## Embedding Model
 
-The system uses nomic-embed-text via Ollama for local embeddings. This model
+The system uses a Nomic embedding model via LM Studio for local embeddings. This model
 was chosen for several reasons:
 
 - Small memory footprint: 137M parameters, only ~500MB VRAM

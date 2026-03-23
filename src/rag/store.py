@@ -20,7 +20,7 @@ class VectorStore:
     """ChromaDB-backed vector store.
 
     Usage:
-        store = VectorStore(embedder=Embedder())
+        store = VectorStore(embedder=...)  # use RAGPipeline.from_config or inject Embedder
         store.add_chunks(chunks)
         results = store.query("How does X work?", top_k=5)
     """

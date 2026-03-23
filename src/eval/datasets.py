@@ -106,7 +106,9 @@ def create_starter_dataset() -> EvalDataset:
         EvalSample(
             id="q003",
             query="What embedding model is used?",
-            expected_answer="The system uses nomic-embed-text via Ollama for local embeddings.",
+            expected_answer=(
+                "The system uses a Nomic embedding model via LM Studio for local embeddings."
+            ),
             metadata={"category": "architecture", "difficulty": "easy"},
         ),
     ]

@@ -9,10 +9,10 @@ from __future__ import annotations
 from pathlib import Path
 
 from deepeval import evaluate
-from deepeval.test_case import LLMTestCase
 
 from src.data.schemas import EvalReport, EvalResult, MetricScore
 from src.eval.datasets import load_eval_dataset, to_deepeval_test_cases
+from src.eval.judge import judge_model_from_config_files
 from src.eval.metrics import get_all_metrics
 from src.rag.pipeline import RAGPipeline
 
@@ -24,6 +24,8 @@ def run_evaluation(
     core_threshold: float = 0.7,
     retrieval_threshold: float = 0.6,
     verbose: bool = True,
+    default_config_path: str | Path = "configs/default.yaml",
+    eval_config_path: str | Path = "configs/eval.yaml",
 ) -> EvalReport:
     """Run a full evaluation of the RAG pipeline on a dataset.
 
@@ -34,12 +36,16 @@ def run_evaluation(
         core_threshold: Threshold for core RAG metrics.
         retrieval_threshold: Threshold for retrieval metrics.
         verbose: Print progress and results.
+        default_config_path: Pipeline YAML (provides lm_studio base_url / api_key).
+        eval_config_path: Eval YAML (provides judge model name / temperature).
 
     Returns:
         EvalReport with all results.
     """
     dataset = load_eval_dataset(dataset_path)
+    judge_model = judge_model_from_config_files(default_config_path, eval_config_path)
     metrics = get_all_metrics(
+        judge_model,
         core_threshold=core_threshold,
         retrieval_threshold=retrieval_threshold,
         include_custom=include_custom_metrics,
@@ -52,8 +58,8 @@ def run_evaluation(
     # Generate pipeline outputs for each sample
     test_cases = to_deepeval_test_cases(dataset, pipeline.query_for_eval)
 
-    # Run DeepEval evaluation
-    eval_results = evaluate(test_cases, metrics, print_results=verbose)
+    # Run DeepEval evaluation (mutates metric objects with scores)
+    evaluate(test_cases, metrics, print_results=verbose)
 
     # Convert to our EvalReport format
     results = []
@@ -63,12 +69,14 @@ def run_evaluation(
             # After evaluate(), each metric has .score and .reason populated
             # for the last test case. We need to re-measure for each.
             # Note: In practice, evaluate() handles this internally.
+            mscore = getattr(metric, "score", None)
+            has_score = hasattr(metric, "score") and mscore is not None
             scores.append(
                 MetricScore(
                     metric_name=metric.__class__.__name__,
-                    score=metric.score if hasattr(metric, "score") and metric.score is not None else 0.0,
+                    score=mscore if has_score else 0.0,
                     threshold=metric.threshold,
-                    passed=metric.score >= metric.threshold if hasattr(metric, "score") and metric.score is not None else False,
+                    passed=(mscore >= metric.threshold) if has_score else False,
                     reason=getattr(metric, "reason", None),
                 )
             )

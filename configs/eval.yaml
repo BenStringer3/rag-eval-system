@@ -1,8 +1,9 @@
 # Evaluation Configuration
 
 judge:
-  # The LLM used as evaluation judge (via Ollama)
-  model: "qwen3:14b"
+  # DeepEval metrics call this model via LM Studio's OpenAI-compatible API.
+  # base_url and api_key are read from configs/default.yaml → lm_studio.
+  model: "qwen/qwen3-14b"
   temperature: 0
 
 metrics:

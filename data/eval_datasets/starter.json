@@ -20,14 +20,14 @@
     {
       "id": "q003",
       "query": "What embedding model is used and why?",
-      "expected_answer": "The system uses nomic-embed-text via Ollama. It was chosen for its small memory footprint (137M params), 8K token context window, and 768-dimensional embeddings, leaving plenty of VRAM for the generation model.",
+      "expected_answer": "The system uses a Nomic embedding model via LM Studio's OpenAI-compatible API (e.g. text-embedding-nomic-embed-text-v1.5). It was chosen for its small memory footprint (137M params), 8K token context window, and 768-dimensional embeddings, leaving plenty of VRAM for the generation model.",
       "expected_context": null,
       "metadata": {"category": "architecture", "difficulty": "easy"}
     },
     {
       "id": "q004",
       "query": "How does the evaluation system work?",
-      "expected_answer": "The evaluation system uses DeepEval with a local Ollama model as the LLM judge. It measures faithfulness, answer relevancy, contextual precision, and contextual recall. Custom G-Eval metrics can be added for domain-specific evaluation.",
+      "expected_answer": "The evaluation system uses DeepEval with a local LLM judge served by LM Studio (OpenAI-compatible /v1 API). It measures faithfulness, answer relevancy, contextual precision, and contextual recall. Custom G-Eval metrics can be added for domain-specific evaluation.",
       "expected_context": null,
       "metadata": {"category": "evaluation", "difficulty": "medium"}
     },

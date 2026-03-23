@@ -1,15 +1,11 @@
-"""LLM response generation via Ollama.
-
-Takes a query and retrieved context, formats a prompt, and generates
-a grounded response using a local LLM.
-"""
+"""LLM response generation via LM Studio (OpenAI-compatible chat completions)."""
 
 from __future__ import annotations
 
 import time
 from dataclasses import dataclass
 
-import ollama
+from openai import OpenAI
 
 from src.data.schemas import RAGResult, RetrievedChunk
 
@@ -25,14 +21,16 @@ Context:
 
 @dataclass
 class Generator:
-    """Generate answers using a local Ollama LLM.
+    """Generate answers using a local model served by LM Studio.
 
     Usage:
-        gen = Generator()
+        client = openai_client(LMStudioSettings.from_config(cfg))
+        gen = Generator(client=client, model="...")
         result = gen.generate("What is X?", retrieved_chunks)
     """
 
-    model: str = "qwen3:14b"
+    client: OpenAI
+    model: str
     temperature: float = 0.1
     max_tokens: int = 1024
     system_prompt: str = DEFAULT_SYSTEM_PROMPT
@@ -48,23 +46,22 @@ class Generator:
             RAGResult with the answer and metadata.
         """
         context = self._format_context(retrieved_chunks)
-        system = self.system_prompt.format(context=context)
+        system = self.system_prompt.format(context=context, query=query)
 
         start = time.perf_counter()
-        response = ollama.chat(
+        completion = self.client.chat.completions.create(
             model=self.model,
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": query},
             ],
-            options={
-                "temperature": self.temperature,
-                "num_predict": self.max_tokens,
-            },
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
         )
         latency_ms = (time.perf_counter() - start) * 1000
 
-        answer = response["message"]["content"]
+        msg = completion.choices[0].message
+        answer = msg.content or ""
 
         return RAGResult(
             query=query,

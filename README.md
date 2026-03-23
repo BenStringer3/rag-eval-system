@@ -36,29 +36,29 @@ Designed for iterative improvement — start simple, measure everything, upgrade
 
 - Python 3.11+
 - 24 GB VRAM GPU (tested on RTX 3090/4090)
-- Ollama (for local embedding + LLM judge)
+- [LM Studio](https://lmstudio.ai/) with the `lms` CLI (ships with the app; run the GUI at least once first)
 
 ## Quick Start
 
 ```bash
+# 0. LM Studio: start server and load models (ids must match configs/default.yaml)
+bash scripts/setup_lm_studio.sh
+# Then load embedding + chat models, e.g.:
+#   lms load text-embedding-nomic-embed-text-v1.5 -y
+#   lms load qwen/qwen3-14b -y
+#   lms ps
+
 # 1. Install dependencies
+python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 
-# 2. Pull Ollama models
-ollama pull nomic-embed-text        # embedding model (~500MB)
-ollama pull qwen3:14b               # generation model
-ollama pull qwen3:14b               # also used as eval judge
-
-# 3. Configure DeepEval to use local Ollama judge
-deepeval set-ollama --model=qwen3:14b
-
-# 4. Index the sample corpus
+# 2. Index the sample corpus (embedding model must be loaded in LM Studio)
 python -m src.rag.ingest --corpus-dir data/corpus
 
-# 5. Run the eval suite
-deepeval test run tests/
+# 3. Run eval tests (judge + chat model must be loaded)
+pytest -m eval
 
-# 6. Launch visualization
+# 4. Launch visualization
 python -m src.viz.embedding_explorer
 ```
 
@@ -67,13 +67,15 @@ python -m src.viz.embedding_explorer
 ```
 rag-eval-system/
 ├── src/
+│   ├── inference/            # LM Studio OpenAI-compatible client config
+│   │   └── lm_studio.py
 │   ├── rag/                  # RAG pipeline components
 │   │   ├── __init__.py
 │   │   ├── chunker.py        # Document splitting strategies
-│   │   ├── embedder.py       # Local embedding via Ollama
+│   │   ├── embedder.py       # Embeddings via LM Studio (/v1/embeddings)
 │   │   ├── store.py          # ChromaDB vector store
 │   │   ├── retriever.py      # Similarity search + retrieval
-│   │   ├── generator.py      # LLM response generation
+│   │   ├── generator.py      # Chat completions via LM Studio (/v1/chat/completions)
 │   │   ├── pipeline.py       # End-to-end RAG orchestration
 │   │   └── ingest.py         # Corpus ingestion CLI
 │   │
@@ -113,7 +115,7 @@ rag-eval-system/
 │   └── DECISIONS.md          # Architecture decision log
 │
 ├── scripts/
-│   ├── setup_ollama.sh       # Ollama model pull script
+│   ├── setup_lm_studio.sh    # LM Studio server + load-model hints
 │   └── generate_eval_data.py # Synthetic eval data generation
 │
 ├── pyproject.toml
@@ -125,11 +127,11 @@ rag-eval-system/
 ### Phase 1 — Foundation (current)
 - [x] Project scaffold
 - [ ] Simple chunker (recursive text splitting)
-- [ ] Local embeddings via Ollama (nomic-embed-text)
+- [ ] Local embeddings via LM Studio (Nomic embed)
 - [ ] ChromaDB vector store
 - [ ] Basic cosine similarity retrieval
-- [ ] Ollama-based generation (qwen3:14b)
-- [ ] DeepEval integration with Ollama judge
+- [ ] LM Studio chat generation
+- [ ] DeepEval judge via LM Studio (GPTModel + base_url)
 - [ ] Starter eval dataset (hand-written, ~20-30 Q&A pairs)
 - [ ] UMAP embedding visualization
 

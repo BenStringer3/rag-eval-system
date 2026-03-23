@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import pytest
 from deepeval import assert_test
+from deepeval.models import GPTModel
 from deepeval.test_case import LLMTestCase
 
 from src.eval.datasets import load_eval_dataset
@@ -20,10 +21,13 @@ from src.rag.pipeline import RAGPipeline
 class TestEndToEnd:
     """Full pipeline evaluation combining retrieval + generation metrics."""
 
-    def test_all_metrics(self, pipeline: RAGPipeline, eval_dataset_path: str):
+    def test_all_metrics(
+        self, pipeline: RAGPipeline, eval_dataset_path: str, judge_model: GPTModel
+    ):
         """Each sample must pass all core RAG metrics."""
         dataset = load_eval_dataset(eval_dataset_path)
         metrics = get_all_metrics(
+            judge_model,
             core_threshold=0.7,
             retrieval_threshold=0.6,
             include_custom=False,
@@ -50,11 +54,12 @@ class TestEndToEndWithCustom:
     """
 
     def test_all_metrics_including_custom(
-        self, pipeline: RAGPipeline, eval_dataset_path: str
+        self, pipeline: RAGPipeline, eval_dataset_path: str, judge_model: GPTModel
     ):
         """Each sample must pass all metrics including custom ones."""
         dataset = load_eval_dataset(eval_dataset_path)
         metrics = get_all_metrics(
+            judge_model,
             core_threshold=0.7,
             retrieval_threshold=0.6,
             include_custom=True,

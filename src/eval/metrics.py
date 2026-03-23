@@ -3,7 +3,7 @@
 Phase 1: Standard RAG metrics (faithfulness, relevancy, context).
 Phase 2+: Custom G-Eval metrics for code accuracy and diagram fidelity.
 
-All metrics work with local Ollama models as the LLM judge.
+Metrics use a DeepEval GPTModel pointed at LM Studio's OpenAI-compatible API.
 """
 
 from __future__ import annotations
@@ -15,30 +15,27 @@ from deepeval.metrics import (
     FaithfulnessMetric,
     GEval,
 )
+from deepeval.models import GPTModel
 from deepeval.test_case import LLMTestCaseParams
 
 
-def get_core_metrics(threshold: float = 0.7) -> list:
-    """Return the standard RAG evaluation metrics.
-
-    These are the Phase 1 metrics that work out of the box with
-    DeepEval + Ollama. No custom prompts needed.
-    """
+def get_core_metrics(judge_model: GPTModel, threshold: float = 0.7) -> list:
+    """Return the standard RAG evaluation metrics."""
     return [
-        FaithfulnessMetric(threshold=threshold),
-        AnswerRelevancyMetric(threshold=threshold),
+        FaithfulnessMetric(threshold=threshold, model=judge_model),
+        AnswerRelevancyMetric(threshold=threshold, model=judge_model),
     ]
 
 
-def get_retrieval_metrics(threshold: float = 0.6) -> list:
+def get_retrieval_metrics(judge_model: GPTModel, threshold: float = 0.6) -> list:
     """Return retrieval-focused metrics.
 
     These require `expected_output` in the test case to compute
     contextual recall.
     """
     return [
-        ContextualPrecisionMetric(threshold=threshold),
-        ContextualRecallMetric(threshold=threshold),
+        ContextualPrecisionMetric(threshold=threshold, model=judge_model),
+        ContextualRecallMetric(threshold=threshold, model=judge_model),
     ]
 
 
@@ -46,12 +43,9 @@ def get_retrieval_metrics(threshold: float = 0.6) -> list:
 # Phase 2: Custom G-Eval metrics (disabled by default)
 # ---------------------------------------------------------------------------
 
-def get_code_accuracy_metric(threshold: float = 0.8) -> GEval:
-    """Custom metric: does the response contain correct code?
 
-    Evaluates whether code snippets in the response are syntactically
-    correct and semantically aligned with the query's intent.
-    """
+def get_code_accuracy_metric(judge_model: GPTModel, threshold: float = 0.8) -> GEval:
+    """Custom metric: does the response contain correct code?"""
     return GEval(
         name="Code Accuracy",
         criteria=(
@@ -65,16 +59,13 @@ def get_code_accuracy_metric(threshold: float = 0.8) -> GEval:
             LLMTestCaseParams.ACTUAL_OUTPUT,
             LLMTestCaseParams.RETRIEVAL_CONTEXT,
         ],
+        model=judge_model,
         threshold=threshold,
     )
 
 
-def get_diagram_fidelity_metric(threshold: float = 0.7) -> GEval:
-    """Custom metric: does the response accurately describe a diagram?
-
-    Evaluates whether the response correctly captures the structure,
-    relationships, and flow depicted in a mermaid diagram.
-    """
+def get_diagram_fidelity_metric(judge_model: GPTModel, threshold: float = 0.7) -> GEval:
+    """Custom metric: does the response accurately describe a diagram?"""
     return GEval(
         name="Diagram Fidelity",
         criteria=(
@@ -89,11 +80,13 @@ def get_diagram_fidelity_metric(threshold: float = 0.7) -> GEval:
             LLMTestCaseParams.ACTUAL_OUTPUT,
             LLMTestCaseParams.RETRIEVAL_CONTEXT,
         ],
+        model=judge_model,
         threshold=threshold,
     )
 
 
 def get_all_metrics(
+    judge_model: GPTModel,
     core_threshold: float = 0.7,
     retrieval_threshold: float = 0.6,
     include_custom: bool = False,
@@ -101,14 +94,17 @@ def get_all_metrics(
     """Return all configured metrics.
 
     Args:
+        judge_model: DeepEval model (LM Studio via OpenAI-compatible API).
         core_threshold: Threshold for faithfulness + answer relevancy.
         retrieval_threshold: Threshold for contextual precision + recall.
         include_custom: Whether to include Phase 2 custom metrics.
     """
-    metrics = get_core_metrics(core_threshold) + get_retrieval_metrics(retrieval_threshold)
+    metrics = get_core_metrics(judge_model, core_threshold) + get_retrieval_metrics(
+        judge_model, retrieval_threshold
+    )
 
     if include_custom:
-        metrics.append(get_code_accuracy_metric())
-        metrics.append(get_diagram_fidelity_metric())
+        metrics.append(get_code_accuracy_metric(judge_model))
+        metrics.append(get_diagram_fidelity_metric(judge_model))
 
     return metrics

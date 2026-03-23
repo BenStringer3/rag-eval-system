@@ -1,6 +1,7 @@
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.backends._legacy:_Backend"
+# setuptools.build_meta is the PEP 517 backend; _legacy was removed in setuptools 82+.
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "rag-eval-system"
@@ -10,9 +11,9 @@ requires-python = ">=3.11"
 license = { text = "MIT" }
 
 dependencies = [
-    # RAG pipeline
+    # RAG pipeline (LM Studio OpenAI-compatible API)
     "chromadb>=0.5.0",
-    "ollama>=0.4.0",
+    "openai>=1.40.0",
 
     # Document processing
     "pyyaml>=6.0",

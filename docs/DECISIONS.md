@@ -7,14 +7,14 @@
 
 **Context:**  
 We need an evaluation framework for our local RAG system that supports custom metrics,
-works with local LLM judges (Ollama), and can grow from simple RAG evals into agentic
+works with local LLM judges (LM Studio OpenAI-compatible API), and can grow from simple RAG evals into agentic
 RAG evaluation as the system evolves.
 
 **Decision:**  
 Use DeepEval as the primary evaluation framework.
 
 **Rationale:**
-- Native Ollama integration via `deepeval set-ollama` — critical for fully local operation
+- DeepEval `GPTModel` with `base_url` pointing at LM Studio — same OpenAI-compatible stack as the RAG client; fully local
 - Pytest-compatible test runner integrates naturally with CI/CD
 - G-Eval allows custom metric criteria in plain language (needed for code/diagram eval)
 - Framework-agnostic — no LangChain/LlamaIndex lock-in
@@ -25,7 +25,7 @@ Use DeepEval as the primary evaluation framework.
 **Consequences:**
 - LLM-as-judge metrics require a capable local model (≥14B params recommended)
 - Metric computation costs scale with dataset size (each metric = 1+ LLM call per sample)
-- Custom prompt templates may need tuning for the specific Ollama model used
+- Custom prompt templates may need tuning for the specific local chat model used
 
 ---
 
@@ -38,7 +38,7 @@ Use DeepEval as the primary evaluation framework.
 Need a local embedding model that fits in 24 GB VRAM alongside a generation model.
 
 **Decision:**  
-Use nomic-embed-text (137M params, 768d, 8K context) via Ollama.
+Use Nomic embed text (137M params, 768d, 8K context) via LM Studio (e.g. `text-embedding-nomic-embed-text-v1.5`).
 
 **Rationale:**
 - Only ~500MB memory — leaves plenty of VRAM for generation model

@@ -14,6 +14,7 @@ import yaml
 
 from src.data.loaders import load_corpus
 from src.data.schemas import RAGResult
+from src.inference.lm_studio import LMStudioSettings, openai_client
 from src.rag.chunker import RecursiveChunker
 from src.rag.embedder import Embedder
 from src.rag.generator import Generator
@@ -48,7 +49,11 @@ class RAGPipeline:
         with open(config_path) as f:
             cfg = yaml.safe_load(f)
 
+        lm = LMStudioSettings.from_config(cfg)
+        client = openai_client(lm)
+
         embedder = Embedder(
+            client=client,
             model=cfg["embedding"]["model"],
             query_prefix=cfg["embedding"].get("query_prefix", "search_query: "),
             document_prefix=cfg["embedding"].get("document_prefix", "search_document: "),
@@ -82,6 +87,7 @@ class RAGPipeline:
         )
 
         generator = Generator(
+            client=client,
             model=cfg["generation"]["model"],
             temperature=cfg["generation"]["temperature"],
             max_tokens=cfg["generation"]["max_tokens"],

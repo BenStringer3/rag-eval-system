@@ -1,10 +1,18 @@
 # RAG Pipeline Configuration
-# All models run locally via Ollama
+# Inference via LM Studio local server (OpenAI-compatible /v1 API).
+
+# LM Studio: run `lms server start`, then `lms load <model>` for embedding + chat models.
+lm_studio:
+  # Root URL for OpenAI-compatible endpoints (embeddings, chat completions).
+  base_url: "http://localhost:1234/v1"
+  # LM Studio accepts any string here when no API key is configured (see LM Studio openai-compat docs).
+  api_key: "lm-studio"
 
 embedding:
-  model: "nomic-embed-text"
+  # Must match the model id shown in LM Studio / GET /v1/models (e.g. after `lms load`).
+  model: "text-embedding-nomic-embed-text-v1.5"
   dimensions: 768
-  # Prefix tokens required by nomic-embed-text
+  # Prefix tokens required by Nomic embed models
   query_prefix: "search_query: "
   document_prefix: "search_document: "
 
@@ -38,7 +46,8 @@ retrieval:
   # score_threshold: 0.3  # Uncomment to filter low-relevance results
 
 generation:
-  model: "qwen3:14b"
+  # Chat model id as exposed by LM Studio (load with `lms load` before querying).
+  model: "qwen/qwen3-14b"
   temperature: 0.1
   max_tokens: 1024
   system_prompt: |

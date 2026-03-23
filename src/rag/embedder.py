@@ -1,28 +1,29 @@
-"""Local embedding via Ollama.
+"""Local embeddings via LM Studio (OpenAI-compatible /v1/embeddings).
 
-Uses nomic-embed-text by default. The model requires task-specific
-prefixes ("search_query: " for queries, "search_document: " for docs)
-to produce optimal embeddings.
+Nomic-style models use task prefixes ("search_query: " / "search_document: ")
+for best retrieval quality.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-import ollama
+from openai import OpenAI
 
 
 @dataclass
 class Embedder:
-    """Generate embeddings using a local Ollama model.
+    """Generate embeddings using LM Studio's OpenAI-compatible API.
 
     Usage:
-        embedder = Embedder()
+        client = openai_client(LMStudioSettings.from_config(cfg))
+        embedder = Embedder(client=client, model="...")
         doc_vectors = embedder.embed_documents(["Hello world", "Foo bar"])
         query_vector = embedder.embed_query("What is hello?")
     """
 
-    model: str = "nomic-embed-text"
+    client: OpenAI
+    model: str
     query_prefix: str = "search_query: "
     document_prefix: str = "search_document: "
     _dimensions: int | None = field(default=None, init=False, repr=False)
@@ -48,6 +49,5 @@ class Embedder:
         return [self._embed_single(text) for text in texts]
 
     def _embed_single(self, text: str) -> list[float]:
-        """Call Ollama embedding API for a single text."""
-        response = ollama.embed(model=self.model, input=text)
-        return response["embeddings"][0]
+        resp = self.client.embeddings.create(model=self.model, input=[text])
+        return list(resp.data[0].embedding)
