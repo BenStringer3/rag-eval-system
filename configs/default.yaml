@@ -47,17 +47,11 @@ retrieval:
 
 generation:
   # Chat model id as exposed by LM Studio (load with `lms load` before querying).
-  model: "qwen/qwen3.5-35b-a3b"
+  model: "mistralai/devstral-small-2-2512"
   temperature: 0.1
   max_tokens: 1024
-  # Forwarded to chat.completions.create. For vLLM / servers that honor Qwen's template flags,
-  # extra_body.chat_template_kwargs disables chain-of-thought at the engine. LM Studio's
-  # documented OpenAI payload is smaller and may ignore extra_body; the judge strips
-  # Qwen-style think/thinking fenced blocks from model output before JSON parsing.
-  generation_kwargs:
-    extra_body:
-      chat_template_kwargs:
-        enable_thinking: false
+  # Additional chat.completions parameters for the app generation path.
+  # Keep empty unless you need model-specific behavior beyond the defaults above.
   system_prompt: |
     You are a helpful assistant that answers questions based on the provided context.
     Always ground your answers in the retrieved context. If the context doesn't contain

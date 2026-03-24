@@ -3,16 +3,24 @@
 judge:
   # DeepEval metrics call this model via LM Studio's OpenAI-compatible API.
   # base_url and api_key are read from configs/default.yaml → lm_studio.
-  model: "qwen/qwen3.5-35b-a3b"
+  model: "mistralai/devstral-small-2-2512"
   temperature: 0
-  # Forwarded to chat.completions.create. For vLLM / servers that honor Qwen's template flags,
-  # extra_body.chat_template_kwargs disables chain-of-thought at the engine. LM Studio's
-  # documented OpenAI payload is smaller and may ignore extra_body; the judge strips
-  # Qwen-style think/thinking fenced blocks from model output before JSON parsing.
+  # Forwarded to chat.completions.create on every judge call.
+  # LM Studio 0.4.x accepts response_format.type values "json_schema" and "text".
+  # We request JSON-object output shape to improve parse reliability for DeepEval metrics.
   generation_kwargs:
-    extra_body:
-      chat_template_kwargs:
-        enable_thinking: false
+    response_format:
+      type: json_schema
+      json_schema:
+        # Name is required by OpenAI-compatible structured output payloads.
+        name: "deepeval_judge_response"
+        # strict=false keeps schema permissive because different DeepEval metrics
+        # ask the judge for different JSON keys.
+        strict: false
+        schema:
+          # Require top-level JSON object while allowing metric-specific fields.
+          type: object
+          additionalProperties: true
 
 metrics:
   # Core RAG metrics (DeepEval built-in)
