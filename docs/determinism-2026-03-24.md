@@ -38,6 +38,9 @@ Each **`meta.json`** also includes a small **`eval_context`** block (generation 
 judge model ids and temperatures) so you can confirm two compared batches used the same
 scoring setup without diffing YAML.
 
+For **SQL-backed history** (ingest many runs, filter by `hybrid_enabled`, optional
+t-tests across run groups), see [eval-registry.md](eval-registry.md).
+
 ---
 
 ## Why aggregation matters (empirical noise)
