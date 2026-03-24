@@ -21,7 +21,7 @@ judge:
   # Cap completion length to avoid runaway judge responses causing
   # LengthFinishReasonError in structured parse mode.
   generation_kwargs:
-    max_completion_tokens: 5000
+    max_completion_tokens: 10000
 
 metrics:
   # Core RAG metrics (DeepEval built-in)

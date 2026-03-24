@@ -95,8 +95,8 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument(
         "--per-task-timeout",
         type=int,
-        default=180,
-        help="Per-task timeout in seconds for DeepEval (default: 180). Raise if your judge is consistently slower.",
+        default=500,
+        help="Per-task timeout in seconds for DeepEval (default: 500). Raise if your judge is consistently slower.",
     )
     p.add_argument(
         "-q",
