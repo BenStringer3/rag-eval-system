@@ -86,12 +86,13 @@ class RAGPipeline:
             score_threshold=cfg["retrieval"].get("score_threshold"),
         )
 
+        gen_cfg = cfg["generation"]
         generator = Generator(
             client=client,
-            model=cfg["generation"]["model"],
-            temperature=cfg["generation"]["temperature"],
-            max_tokens=cfg["generation"]["max_tokens"],
-            system_prompt=cfg["generation"].get("system_prompt", Generator.system_prompt),
+            model=gen_cfg["model"],
+            temperature=gen_cfg["temperature"],
+            max_tokens=gen_cfg["max_tokens"],
+            system_prompt=gen_cfg.get("system_prompt", Generator.system_prompt),
         )
 
         return cls(

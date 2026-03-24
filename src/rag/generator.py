@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-
 from openai import OpenAI
 
 from src.data.schemas import RAGResult, RetrievedChunk
@@ -49,15 +48,16 @@ class Generator:
         system = self.system_prompt.format(context=context, query=query)
 
         start = time.perf_counter()
-        completion = self.client.chat.completions.create(
-            model=self.model,
-            messages=[
+        create_kw: dict = {
+            "model": self.model,
+            "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": query},
             ],
-            temperature=self.temperature,
-            max_tokens=self.max_tokens,
-        )
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+        }
+        completion = self.client.chat.completions.create(**create_kw)
         latency_ms = (time.perf_counter() - start) * 1000
 
         msg = completion.choices[0].message
