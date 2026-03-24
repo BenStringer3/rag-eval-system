@@ -23,8 +23,13 @@ def pipeline() -> RAGPipeline:
 
     Loads config and connects to the persisted vector store.
     Assumes `python -m src.rag.ingest` has already been run.
+
+    Hybrid retrieval is turned off so threshold-locked eval tests stay stable;
+    production uses ``configs/default.yaml`` (hybrid on by default).
     """
-    return RAGPipeline.from_config(str(ROOT / "configs/default.yaml"))
+    p = RAGPipeline.from_config(str(ROOT / "configs/default.yaml"))
+    p.retriever.hybrid_enabled = False
+    return p
 
 
 @pytest.fixture(scope="session")
