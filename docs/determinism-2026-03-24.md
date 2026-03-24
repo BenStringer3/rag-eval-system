@@ -1,14 +1,54 @@
-# Eval Determinism & Repeatability — 2026-03-24
+# Eval variance & comparing runs — 2026-03-24
 
-## Problem
+Single eval runs are **noisy**: pass rate and metric means move between back-to-back
+invocations with **no pipeline changes**. Treat **comparability** as a property of
+**repeated measurement** (median over several runs), not of one shot.
 
-Back-to-back eval runs with **no code or config changes** produce different pass
-rates. This makes it impossible to attribute score movements to pipeline changes
-vs. random noise.
+---
 
-### Observed variance (all runs on `synthetic.json`, 25 samples, GPT-4o-mini judge)
+## Comparing runs (recommended workflow)
 
-#### Runs at generation `temperature: 0.1` (original default)
+1. Keep **configs, corpus, and index** fixed while you repeat.
+2. Run **`scripts/run_eval_report.py`** at least **three times** with the same flags
+   (use throttling if the cloud judge rate-limits, e.g. `--max-concurrent 1`
+   `--judge-throttle-seconds 5`).
+3. Point **`scripts/summarize_eval_runs.py`** at the resulting timestamp folders;
+   it reads only each run’s **`meta.json`** and prints min / max / median (and stdev
+   when there are at least three runs) for **`pass_rate`** and each **`mean_scores`**
+   metric per dataset.
+
+Example:
+
+```bash
+for _ in 1 2 3; do
+  .venv/bin/python scripts/run_eval_report.py --max-concurrent 1 --judge-throttle-seconds 5
+done
+
+.venv/bin/python scripts/summarize_eval_runs.py \
+  artifacts/eval_runs/20260324T175312Z \
+  artifacts/eval_runs/20260324T180009Z \
+  artifacts/eval_runs/20260324T181000Z
+```
+
+Replace the three paths with your actual `artifacts/eval_runs/<UTC>/` directories.
+Per-dataset reports live under `<UTC>/<dataset_key>/` (e.g. `synthetic/`), matching
+keys in `configs/eval.yaml` → `datasets`.
+
+Each **`meta.json`** also includes a small **`eval_context`** block (generation and
+judge model ids and temperatures) so you can confirm two compared batches used the same
+scoring setup without diffing YAML.
+
+---
+
+## Why aggregation matters (empirical noise)
+
+On **`synthetic.json`** (25 samples, GPT-4o-mini judge), observed **single-run**
+swings with **no code changes** were on the order of **~8–12 percentage points**
+on pass rate depending on conditions; mean metric deltas on noisy metrics (e.g.
+faithfulness, contextual recall) were material at the sample level. The tables below
+are **historical measurements** from that day’s experiments (mixed config stages).
+
+### Runs at generation `temperature: 0.1` (older default)
 
 | Run | Pass rate | Faithfulness | Relevancy | Precision | Recall |
 |-----|-----------|-------------|-----------|-----------|--------|
@@ -19,20 +59,40 @@ vs. random noise.
 
 **Range: 44–52% (8 pp swing)**
 
-#### Runs at generation `temperature: 0.0` (after fix)
+### Runs at generation `temperature: 0.0`
 
 | Run | Pass rate | Faithfulness | Relevancy | Precision | Recall |
 |-----|-----------|-------------|-----------|-----------|--------|
 | `20260324T171916Z` | 48% | 0.813 | 0.923 | 0.739 | 0.904 |
 | `20260324T172743Z` | 60% | 0.826 | 0.908 | 0.730 | 0.897 |
 
-**Range: 48–60% (12 pp swing) — still substantial.**
+**Range: 48–60% (12 pp swing)**
 
-Setting the generator to temperature 0 did not make runs deterministic.
+### Back-to-back runs (synthetic only; further tightening)
+
+| Run | Pass rate | Faithfulness | Relevancy | Precision | Recall |
+|-----|-----------|-------------|-----------|-----------|--------|
+| `20260324T175312Z` | 48% | 0.788 | 0.897 | 0.721 | 0.940 |
+| `20260324T180009Z` | 60% | 0.867 | 0.889 | 0.736 | 0.897 |
+
+**Range: 48–60% (12 pp)** — same ballpark as the temp=0 pair above.
+
+#### Pairwise diff (`synthetic/report.json`): `175312Z` vs `180009Z`
+
+| Layer / signal | Count / note |
+|----------------|--------------|
+| Identical `retrieval_context` | **25/25** |
+| Identical `generated_answer` | **14/25** |
+| Sample-level pass-all flips | **7** |
+| Per-metric pass/fail flips | Faithfulness **8**/25; Relevancy **0**/25; Precision **0**/25; Recall **1**/25 |
+
+**Mean score Δ (run 2 − run 1):** Faithfulness **+0.079** (14/25 samples with \|Δ\| > 0.001); Answer Relevancy **−0.009** (5/25); Contextual Precision **+0.015** (4/25); Contextual Recall **−0.043** (5/25).
+
+**Identical generated answer, score behavior (of 25):** 5/25 identical scores; 4/25 scores differ without pass/fail flip; **5/25** differ **with** a pass/fail flip; **11/25** answers differ. Local generation still diverged on **11/25** lines; when the answer matched, judge scores still moved on many rows.
 
 ---
 
-## Where the non-determinism comes from
+## Where the variance comes from
 
 ### Layer 1: RAG generator (local LM Studio model)
 
@@ -41,130 +101,75 @@ Setting the generator to temperature 0 did not make runs deterministic.
 | Identical `retrieval_context` | 25/25 | 25/25 |
 | Identical `generated_answer` | 4/25 | 15/25 |
 
-Dropping temperature from 0.1 to 0.0 improved answer stability from 16% to 60%,
-but **10 of 25 answers still differ** across two consecutive runs at temp=0.
+**Root cause:** LM Studio / llama.cpp does not guarantee bitwise-identical decoding
+at **temperature 0** (GPU floating-point, batch scheduling). **`configs/default.yaml`**
+uses **`temperature: 0.0`** for factual Q&A; that cuts answer churn versus 0.1 but
+does not remove it.
 
-**Root cause:** LM Studio / llama.cpp does not guarantee bitwise-deterministic
-sampling at temperature 0. GPU floating-point non-associativity, batch scheduling,
-and the absence of a `seed` parameter in the current request path all contribute.
-The OpenAI cloud API has the same limitation — their `seed` parameter is documented
-as providing only "mostly deterministic" outputs, and the `system_fingerprint` can
-change across infrastructure updates.
+### Layer 2: DeepEval judge (cloud OpenAI)
 
-### Layer 2: DeepEval judge (GPT-4o-mini via OpenAI API)
+The judge uses a **dated model snapshot** in **`configs/eval.yaml`** so scorer
+behavior does not drift silently when the vendor updates a rolling alias. Even with
+**identical** inputs (same answer + same retrieval context), **LLM-as-judge** scores
+still vary call-to-call.
 
-The judge is configured at `temperature: 0` in `configs/eval.yaml`. But even with
-**identical inputs** (same answer + same retrieval context), judge scores vary:
-
-| Category | Count (of 25) |
-|----------|--------------|
+| Category | Count (of 25, historical row) |
+|----------|------------------------------|
 | Answer identical, scores identical | 4 |
 | Answer identical, scores differ (pure judge jitter) | **11** |
 | Answer identical, scores differ **with pass/fail flip** | **4** |
 | Answer differs, scores differ | 7 |
 | Answer differs, scores identical | 3 |
 
-**11 of 15 samples with identical answers still got different scores.** 4 of those
-flipped pass/fail status. This is the **dominant remaining source** of
-non-determinism after setting generator temp to 0.
-
-Per-metric jitter (across all 25 samples, temp=0 pair):
+Per-metric jitter (temp=0 pair, sample-level Δ):
 
 | Metric | Mean Δ | Stdev | Min | Max | Samples with Δ>0.001 |
-|--------|--------|-------|-----|-----|-----------------------|
+|--------|--------|-------|-----|-----|---------------------|
 | Faithfulness | +0.013 | 0.106 | −0.250 | +0.233 | 12/25 |
 | Answer Relevancy | −0.015 | 0.051 | −0.200 | 0.000 | 2/25 |
 | Contextual Precision | −0.009 | 0.047 | −0.200 | +0.083 | 4/25 |
 | Contextual Recall | −0.007 | 0.164 | −0.500 | +0.500 | 6/25 |
 
-Faithfulness and contextual recall are the noisiest. Faithfulness uses multi-step
-claim extraction + verification (multiple judge calls per sample), amplifying per-call
-variance. Contextual recall compares retrieval to gold via LLM reasoning, which is
-subjective even for the same inputs.
+Faithfulness and contextual recall are the noisiest (multi-step or subjective judge
+reasoning).
 
 ### Layer 3: Retrieval (stable in these runs)
 
-Retrieval context was **25/25 identical** across all compared run pairs. Chroma
-with cosine distance and a deterministic embedding model (nomic-embed-text-v1.5)
-produces stable retrieval for identical queries against an unchanged index. This
-layer is **not** currently contributing to variance.
+Retrieval was **25/25 identical** across compared pairs. Chroma + cosine + a fixed
+embedding model produced stable top-k for identical queries on an unchanged index.
 
 ---
 
-## Recommendations
+## Repo defaults relevant to eval stability
 
-### 1. Pass `seed` to both generator and judge API calls
-
-OpenAI's `seed` parameter does not guarantee perfect determinism, but it
-significantly reduces variance in practice. For the local LM Studio generator,
-llama.cpp also supports a `seed` field; passing a fixed value removes the
-random-seed-per-request behavior.
-
-**Generator** — add `seed` to `configs/default.yaml` and thread it through
-`Generator.generate()`:
-
-```yaml
-generation:
-  temperature: 0.0
-  seed: 42
-```
-
-**Judge** — add `seed` to `configs/eval.yaml` `judge.generation_kwargs` (DeepEval's
-`GPTModel` passes `generation_kwargs` directly to the OpenAI client):
-
-```yaml
-judge:
-  temperature: 0
-  generation_kwargs:
-    max_completion_tokens: 10000
-    seed: 42
-```
-
-### 2. Keep generation temperature at 0
-
-Temperature 0.1 caused 84% of answers to vary. Temperature 0.0 reduced that to
-40%. For a factual, corpus-grounded Q&A system there is no benefit to sampling
-diversity — keep it at 0.
-
-### 3. Average over N runs for meaningful comparisons
-
-Even with seed + temp=0, small jitter will remain (GPU non-determinism, OpenAI
-infrastructure changes). For high-confidence comparisons:
-
-- Run the eval **3 times** and report **median** pass rate and metric means.
-- A pipeline change is **signal** (not noise) if median scores shift by more than
-  the observed single-run jitter band (~5 pp for pass rate, ~0.05 for metric means).
-
-### 4. Consider `strict_mode=True` for DeepEval metrics
-
-DeepEval metrics accept `strict_mode=True`, which snaps scores to 0 or 1 based on
-the threshold. This eliminates fractional-score jitter but loses granularity — only
-use if you care about pass/fail counts, not continuous improvement tracking.
-
-### 5. Pin the judge model version
-
-`gpt-4o-mini` is a rolling alias. OpenAI periodically updates the weights behind
-it (reflected in `system_fingerprint`). For long-term reproducibility, pin to a
-dated snapshot (e.g. `gpt-4o-mini-2024-07-18`) in `configs/eval.yaml`.
-
-### 6. Log `system_fingerprint` per run
-
-When using the OpenAI judge, capture and record the `system_fingerprint` from
-responses in `meta.json`. If fingerprints differ between compared runs, score
-differences may be due to a model update, not your pipeline change.
+- **Generation:** `temperature: 0.0` in **`configs/default.yaml`** (reduces sampling
+  diversity; does not guarantee identical text).
+- **Judge:** dated snapshot id in **`configs/eval.yaml`** (stable **scorer** across
+  weeks vs a rolling `gpt-4o-mini` alias).
+- **Artifacts:** **`meta.json`** includes **`eval_context`** (model ids and
+  temperatures) for audit; aggregates for comparison come from **`datasets`** +
+  **`summarize_eval_runs.py`**.
 
 ---
 
-## How to interpret eval results given current noise
+## How to interpret results (rule-of-thumb bands)
 
-Until full determinism is achieved, treat eval results as follows:
+Use these as **single-run** noise guides until you have your own multi-run stats:
 
-- **Pass rate changes ≤ 5 pp** between runs with no pipeline change: **noise**.
-- **Mean metric shifts ≤ 0.05** on any single metric: **noise**.
-- **Per-sample pass/fail flips** on ≤ 4 samples (of 25): likely **noise** — verify
-  by checking whether the answer text actually changed.
-- Changes **larger** than these bands, especially if consistent across 2+ runs,
-  are **signal** worth investigating.
+- **Pass rate changes ≤ ~5 pp** with no pipeline change: often **noise**.
+- **Mean metric shifts ≤ ~0.05** on one metric: often **noise**.
+- **Per-sample pass/fail flips** on ≤ ~4 samples (of 25): often **noise** — check
+  whether **`generated_answer`** actually changed.
+- Larger shifts, or the **same direction** across **several** repeated runs, are
+  worth investigating.
 
-The noisiest metrics (faithfulness, contextual recall) need the widest error bars.
-Contextual precision and answer relevancy are more stable.
+Faithfulness and contextual recall need the **widest** error bars; contextual
+precision and answer relevancy tend to be more stable.
+
+---
+
+## Optional (not default)
+
+DeepEval metrics support **`strict_mode=True`**, which snaps scores toward discrete
+pass/fail; it changes how jitter shows up, not the underlying LLM variance. Use only
+if you explicitly want coarser gates.
