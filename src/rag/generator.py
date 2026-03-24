@@ -31,7 +31,7 @@ class Generator:
 
     client: OpenAI
     model: str
-    temperature: float = 0.1
+    temperature: float = 0.0
     max_tokens: int = 1024
     system_prompt: str = DEFAULT_SYSTEM_PROMPT
 

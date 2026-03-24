@@ -58,7 +58,7 @@ retrieval:
 generation:
   # Chat model id as exposed by LM Studio (load with `lms load` before querying).
   model: "mistralai/devstral-small-2-2512"
-  temperature: 0.1
+  temperature: 0.0
   max_tokens: 1024
   # Additional chat.completions parameters for the app generation path.
   # Keep empty unless you need model-specific behavior beyond the defaults above.
