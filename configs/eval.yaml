@@ -6,22 +6,20 @@ judge:
   # - local: use configs/default.yaml -> lm_studio.* (LM Studio)
   provider: "openai"
   # Judge model id passed to chat.completions.create.
-  model: "minimax-m2.5"
+  # gpt-4o-mini supports native structured output / JSON mode and is low-cost.
+  model: "gpt-4o-mini"
   # Sampling temperature for judge outputs (0 = deterministic).
   temperature: 0
   openai:
-    # OpenAI-compatible base URL for the cloud judge provider.
-    # Keep /v1 suffix because GPTModel forwards this to the OpenAI client directly.
-    base_url: "https://opencode.ai/zen/v1"
-    # Environment variable name containing the cloud API key.
+    # OpenAI API base URL for cloud judge calls.
+    # Keep /v1 suffix because GPTModel forwards this directly to OpenAI client.
+    base_url: "https://api.openai.com/v1"
+    # Environment variable name containing the OpenAI API key.
     # Expected in runtime env (for example via .env loading in your shell).
-    api_key_env: "OPENCODE_ZEN_API_KEY"
-  # Forwarded to chat.completions.create on every judge call.
-  # Some cloud providers reject json_schema response_format for chat completions.
-  # Use plain text and let DeepEval parse JSON from the response body.
-  generation_kwargs:
-    response_format:
-      type: text
+    api_key_env: "OPENAI_API_KEY"
+  # Intentionally omit generation_kwargs.response_format here.
+  # For this model, DeepEval uses the schema-enforced parse path when available,
+  # which is stricter than plain json_object mode.
 
 metrics:
   # Core RAG metrics (DeepEval built-in)
