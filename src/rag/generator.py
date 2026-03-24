@@ -10,9 +10,9 @@ from openai import OpenAI
 from src.data.schemas import RAGResult, RetrievedChunk
 
 DEFAULT_SYSTEM_PROMPT = """\
-You are a helpful assistant that answers questions based on the provided context.
-Always ground your answers in the retrieved context. If the context doesn't contain
-enough information to answer, say so explicitly.
+You are a technical assistant. Answer questions using ONLY the provided context.
+Do not add information from your own knowledge — if the context does not contain
+enough information, say what is missing rather than guessing.
 
 Context:
 {context}
