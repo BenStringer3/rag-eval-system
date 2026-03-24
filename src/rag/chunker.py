@@ -6,10 +6,16 @@ Future phases will add semantic chunking, AST-based code splitting, etc.
 
 from __future__ import annotations
 
-import uuid
+import hashlib
 from dataclasses import dataclass, field
 
 from src.data.schemas import Chunk, DocumentMeta, DocumentType
+
+
+def _deterministic_chunk_id(source_path: str, start_char: int, text: str) -> str:
+    """Stable chunk id so repeated ingest upserts the same vector-store rows."""
+    payload = f"{source_path}\0{start_char}\0{text}".encode()
+    return hashlib.sha256(payload).hexdigest()
 
 
 # Default separators per document type
@@ -75,7 +81,7 @@ class RecursiveChunker:
 
         return [
             Chunk(
-                chunk_id=f"{metadata.source_path}::{uuid.uuid4().hex[:8]}",
+                chunk_id=_deterministic_chunk_id(metadata.source_path, start, text),
                 text=text,
                 metadata=metadata,
                 start_char=start,
