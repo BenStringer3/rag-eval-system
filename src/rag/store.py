@@ -11,7 +11,7 @@ from pathlib import Path
 
 import chromadb
 
-from src.data.schemas import Chunk, RetrievedChunk
+from src.data.schemas import Chunk, DocumentMeta, DocumentType, RetrievedChunk
 from src.rag.embedder import Embedder
 
 
@@ -119,6 +119,57 @@ class VectorStore:
             retrieved.append(RetrievedChunk(chunk=chunk, score=score))
 
         return retrieved
+
+    def get_all_stored_chunks(self) -> list[Chunk]:
+        """Return every chunk in the collection (for BM25 build / repair)."""
+        res = self.collection.get(include=["documents", "metadatas"])
+        if not res["ids"]:
+            return []
+        chunks: list[Chunk] = []
+        for idx, cid in enumerate(res["ids"]):
+            meta = res["metadatas"][idx]
+            text = res["documents"][idx]
+            chunks.append(
+                Chunk(
+                    chunk_id=cid,
+                    text=text,
+                    metadata=DocumentMeta(
+                        source_path=meta["source_path"],
+                        doc_type=DocumentType(meta["doc_type"]),
+                        title=meta.get("title"),
+                        language=meta.get("language") or None,
+                    ),
+                    embedding=None,
+                )
+            )
+        return chunks
+
+    def get_chunks_by_ids(self, ids: list[str]) -> dict[str, RetrievedChunk]:
+        """Load chunks by stable chunk_id (same text/metadata as in Chroma).
+
+        Score is set to 0.0; callers replace with fused scores. Omits ids missing
+        from the collection.
+        """
+        if not ids:
+            return {}
+        res = self.collection.get(ids=ids, include=["documents", "metadatas"])
+        out: dict[str, RetrievedChunk] = {}
+        for idx, cid in enumerate(res["ids"]):
+            meta = res["metadatas"][idx]
+            text = res["documents"][idx]
+            chunk = Chunk(
+                chunk_id=cid,
+                text=text,
+                metadata=DocumentMeta(
+                    source_path=meta["source_path"],
+                    doc_type=DocumentType(meta["doc_type"]),
+                    title=meta.get("title"),
+                    language=meta.get("language") or None,
+                ),
+                embedding=None,
+            )
+            out[cid] = RetrievedChunk(chunk=chunk, score=0.0)
+        return out
 
     def count(self) -> int:
         """Return the number of chunks in the store."""
