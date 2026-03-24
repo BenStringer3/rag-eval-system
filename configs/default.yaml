@@ -53,7 +53,19 @@ vector_store:
 
 retrieval:
   top_k: 5
-  # score_threshold: 0.3  # Uncomment to filter low-relevance results
+  # score_threshold: 0.3  # Uncomment to filter low-relevance results (dense-only; ignored when hybrid is on)
+  hybrid:
+    # When true: BM25 over chunk text + Chroma dense, merged with reciprocal rank fusion (RRF).
+    enabled: true
+    # How many hits to take from each channel before fusion (must be >= top_k; headroom for dedup).
+    candidate_k: 20
+    # RRF constant k in score 1/(k+rank); common default 60.
+    rrf_k: 60
+    # Only "rrf" is implemented (weighted fusion reserved for later).
+    fusion: rrf
+    # Pickled tokenized corpus + ids; rebuild with ingest after chunking/corpus changes.
+    index_path: ./data/embeddings/bm25_index.pkl
+
 
 generation:
   # Chat model id as exposed by LM Studio (load with `lms load` before querying).
