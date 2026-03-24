@@ -17,6 +17,9 @@ env/
 *.swp
 *.swo
 
+# Eval registry DB (scripts/ingest_eval_registry.py)
+data/eval_registry.db
+
 # Data (large files)
 data/embeddings/
 data/embeddings/chromadb/
