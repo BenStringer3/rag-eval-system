@@ -55,7 +55,9 @@ pip install -e ".[dev]"
 # 2. Index the sample corpus (embedding model must be loaded in LM Studio)
 python -m src.rag.ingest --corpus-dir data/corpus
 
-# 3. Run eval tests (judge + chat model must be loaded)
+# 3. Run eval tests
+# - generation model must be loaded in LM Studio
+# - judge provider is configured in configs/eval.yaml
 pytest -m eval
 
 # 4. Launch visualization
@@ -122,6 +124,26 @@ rag-eval-system/
 └── README.md
 ```
 
+## Judge Provider (Local or Cloud)
+
+DeepEval judge calls are configured in `configs/eval.yaml` under `judge`.
+
+- Cloud judge (current default):
+  - `judge.provider: "openai"`
+  - `judge.model: "minimax-m2.5-free"`
+  - `judge.openai.base_url: "https://opencode.ai/zen/v1"`
+  - `judge.openai.api_key_env: "OPENCODE_ZEN_API_KEY"`
+- Local judge (switch back later):
+  - set `judge.provider: "local"`
+  - set `judge.model` to your loaded LM Studio judge model id
+
+Example env setup for cloud judge:
+
+```bash
+export OPENCODE_ZEN_API_KEY="your-key"
+python scripts/run_eval_report.py --dataset data/eval_datasets/starter.json
+```
+
 ## Phase Roadmap
 
 ### Phase 1 — Foundation ✓
@@ -131,7 +153,7 @@ rag-eval-system/
 - [x] ChromaDB vector store
 - [x] Basic cosine similarity retrieval
 - [x] LM Studio chat generation
-- [x] DeepEval judge via LM Studio (GPTModel + base_url)
+- [x] DeepEval judge via provider-configured OpenAI-compatible endpoint (local or cloud)
 - [x] Starter eval dataset (hand-written Q&A pairs)
 - [x] UMAP embedding visualization
 

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Run batch RAG evaluation and write markdown, JSON, and CSV reports.
 
-Run from the repository root with the package installed (``pip install -e .``)
-and LM Studio serving the models in ``configs/default.yaml`` / ``configs/eval.yaml``.
+Run from the repository root with the package installed (``pip install -e .``).
+Generation models come from ``configs/default.yaml``. Judge provider/model come from
+``configs/eval.yaml`` (local LM Studio or cloud OpenAI-compatible endpoint).
 
 Example::
 
@@ -83,7 +84,7 @@ def _parse_args() -> argparse.Namespace:
         "--max-concurrent",
         type=int,
         default=3,
-        help="Max concurrent judge requests sent to LM Studio (default: 3). Lower if you see timeouts.",
+        help="Max concurrent judge requests sent by DeepEval (default: 3). Lower if you see timeouts/rate limits.",
     )
     p.add_argument(
         "--per-task-timeout",

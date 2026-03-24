@@ -4,16 +4,16 @@ overview: Add a provider-selectable DeepEval judge configuration so evaluations 
 todos:
   - id: design-provider-config
     content: Add provider-aware judge schema to eval.yaml with comments and default to OpenAI gpt-4o-mini.
-    status: pending
+    status: completed
   - id: implement-judge-routing
     content: Refactor src/eval/judge.py to build GPTModel from selected provider and OPENCODE_ZEN_API_KEY.
-    status: pending
+    status: completed
   - id: align-cli-and-docs
     content: Update run_eval_report help text and README instructions for cloud/local judge switching.
-    status: pending
+    status: completed
   - id: smoke-validate
     content: Validate Zen cloud judge connectivity first, then run a small eval and lint checks on modified files.
-    status: pending
+    status: completed
 isProject: false
 ---
 

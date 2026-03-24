@@ -1,10 +1,21 @@
 # Evaluation Configuration
 
 judge:
-  # DeepEval metrics call this model via LM Studio's OpenAI-compatible API.
-  # base_url and api_key are read from configs/default.yaml → lm_studio.
-  model: "mistralai/devstral-small-2-2512"
+  # Select which endpoint DeepEval uses for metric-judge calls.
+  # - openai: use judge.openai.* (cloud)
+  # - local: use configs/default.yaml -> lm_studio.* (LM Studio)
+  provider: "openai"
+  # Judge model id passed to chat.completions.create.
+  model: "minimax-m2.5-free"
+  # Sampling temperature for judge outputs (0 = deterministic).
   temperature: 0
+  openai:
+    # OpenAI-compatible base URL for the cloud judge provider.
+    # Keep /v1 suffix because GPTModel forwards this to the OpenAI client directly.
+    base_url: "https://opencode.ai/zen/v1"
+    # Environment variable name containing the cloud API key.
+    # Expected in runtime env (for example via .env loading in your shell).
+    api_key_env: "OPENCODE_ZEN_API_KEY"
   # Forwarded to chat.completions.create on every judge call.
   # LM Studio 0.4.x accepts response_format.type values "json_schema" and "text".
   # We request JSON-object output shape to improve parse reliability for DeepEval metrics.
