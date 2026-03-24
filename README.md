@@ -173,20 +173,28 @@ If your cloud judge provider rate-limits, start conservative (slower wall clock,
 - [x] Starter eval dataset (hand-written Q&A pairs)
 - [x] UMAP embedding visualization
 
-### Phase 2 — Evaluation Depth (current)
+### Phase 2 — Evaluation & Pipeline Tuning (current)
+- [x] Synthetic eval data generation (corpus-grounded Q&A pairs)
+- [x] Judge model comparison (devstral-small vs GPT-4o-mini)
+- [x] System prompt grounding upgrade (explicit faithfulness constraints)
+- [x] Chunk size tuning (512 → 1024 for markdown, see `docs/rag-improvements-2026-03-24.md`)
+- [x] Query-time retrieval deduplication (text-hash in retriever)
 - [ ] Custom G-Eval metrics for code/diagram accuracy
-- [ ] Synthetic eval data generation (DeepEval synthesizer)
 - [ ] Arize Phoenix integration for cluster analysis
 - [ ] Annotation workflow for expanding eval datasets
 - [ ] CI/CD eval pipeline (pytest + deepeval)
 
-### Phase 3 — Retrieval Upgrades
+### Phase 3 — Chunking & Retrieval Upgrades
+- [ ] Tree-sitter AST-aware code chunking (candidates: chonkie `CodeChunker`, `treesitter-chunker`)
+- [ ] Semantic chunking for prose documents (chonkie `SemanticChunker` or LlamaIndex)
+- [ ] Section-aware markdown chunking (heading-preserving, sub-chunk header prepend)
 - [ ] Hybrid search (dense + BM25 sparse)
 - [ ] HyDE (Hypothetical Document Embeddings)
 - [ ] Cross-encoder reranking
 - [ ] Merkle tree content hashing for incremental updates
 
 ### Phase 4 — Advanced Architectures
+- [ ] Parent-child (small-to-big) retrieval
 - [ ] Graph RAG (knowledge graph extraction)
 - [ ] RAPTOR (recursive abstractive processing)
 - [ ] Agentic RAG (tool-use, multi-step retrieval)
