@@ -107,6 +107,8 @@ class RAGResult(BaseModel):
     retrieved_chunks: list[RetrievedChunk]
     model: str
     latency_ms: float | None = None
+    # Per-stage retrieval wall time (ms): dense (embed+Chroma), bm25, fuse+dedup+slice
+    retrieval_timings_ms: dict[str, float] | None = None
 
 
 # ---------------------------------------------------------------------------

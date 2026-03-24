@@ -15,6 +15,7 @@ import yaml
 from src.data.loaders import load_corpus
 from src.data.schemas import RAGResult
 from src.inference.lm_studio import LMStudioSettings, openai_client
+from src.rag.bm25_index import Bm25Index
 from src.rag.chunker import RecursiveChunker
 from src.rag.embedder import Embedder
 from src.rag.generator import Generator
@@ -37,6 +38,7 @@ class RAGPipeline:
     store: VectorStore
     retriever: Retriever
     generator: Generator
+    hybrid_index_path: Path | None = None
     _ingested: bool = field(default=False, init=False)
 
     @classmethod
@@ -80,10 +82,39 @@ class RAGPipeline:
             distance_metric=cfg["vector_store"]["distance_metric"],
         )
 
+        retrieval_cfg = cfg.get("retrieval", {})
+        hybrid_cfg = retrieval_cfg.get("hybrid") or {}
+        hybrid_enabled = hybrid_cfg.get("enabled", True)
+        candidate_k = int(hybrid_cfg.get("candidate_k", 20))
+        rrf_k = int(hybrid_cfg.get("rrf_k", 60))
+        fusion = hybrid_cfg.get("fusion", "rrf")
+        if fusion != "rrf":
+            raise ValueError(f"Unsupported hybrid fusion: {fusion!r} (only 'rrf' is implemented)")
+        hybrid_index_path = Path(
+            hybrid_cfg.get("index_path", "./data/embeddings/bm25_index.pkl")
+        )
+
+        bm25: Bm25Index | None = None
+        hybrid_path_for_pipeline: Path | None = None
+        if hybrid_enabled:
+            hybrid_path_for_pipeline = hybrid_index_path
+            if hybrid_index_path.exists():
+                bm25 = Bm25Index.load(hybrid_index_path)
+            elif store.count() > 0:
+                # Chroma populated but no BM25 file (e.g. upgrade): build from store.
+                rebuild = Bm25Index()
+                rebuild.build(store.get_all_stored_chunks())
+                rebuild.save(hybrid_index_path)
+                bm25 = rebuild
+
         retriever = Retriever(
             store=store,
-            top_k=cfg["retrieval"]["top_k"],
-            score_threshold=cfg["retrieval"].get("score_threshold"),
+            top_k=retrieval_cfg["top_k"],
+            score_threshold=retrieval_cfg.get("score_threshold"),
+            hybrid_enabled=hybrid_enabled,
+            bm25_index=bm25,
+            candidate_k=candidate_k,
+            rrf_k=rrf_k,
         )
 
         gen_cfg = cfg["generation"]
@@ -101,6 +132,7 @@ class RAGPipeline:
             store=store,
             retriever=retriever,
             generator=generator,
+            hybrid_index_path=hybrid_path_for_pipeline,
         )
 
     def ingest(self, corpus_dir: str | Path) -> int:
@@ -124,10 +156,23 @@ class RAGPipeline:
         print(f"  Split into {len(all_chunks)} chunks")
         print("  Embedding and indexing...")
         self.store.add_chunks(all_chunks)
+        if self.hybrid_index_path is not None:
+            print("  Building BM25 index...")
+            idx = Bm25Index()
+            idx.build(all_chunks)
+            idx.save(self.hybrid_index_path)
+            self.retriever.bm25_index = idx
         self._ingested = True
 
         print(f"  Done. Store contains {self.store.count()} chunks.")
         return len(all_chunks)
+
+    def reset_storage(self) -> None:
+        """Drop Chroma collection and remove BM25 artifact (same as a full re-ingest prep)."""
+        self.store.reset()
+        if self.hybrid_index_path is not None and self.hybrid_index_path.exists():
+            self.hybrid_index_path.unlink()
+        self.retriever.bm25_index = None
 
     def query(self, question: str) -> RAGResult:
         """Run the full RAG pipeline for a question.
@@ -138,9 +183,9 @@ class RAGPipeline:
         Returns:
             RAGResult with the generated answer and retrieved context.
         """
-        retrieved = self.retriever.retrieve(question)
-        result = self.generator.generate(question, retrieved)
-        return result
+        outcome = self.retriever.retrieve_detailed(question)
+        result = self.generator.generate(question, outcome.chunks)
+        return result.model_copy(update={"retrieval_timings_ms": outcome.timings_ms})
 
     def query_for_eval(self, question: str) -> tuple[str, list[str]]:
         """Run the pipeline and return (answer, retrieval_context).

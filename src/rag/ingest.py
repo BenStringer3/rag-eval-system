@@ -37,8 +37,8 @@ def main():
     pipeline = RAGPipeline.from_config(args.config)
 
     if args.reset:
-        print("Resetting vector store...")
-        pipeline.store.reset()
+        print("Resetting vector store and BM25 index...")
+        pipeline.reset_storage()
 
     n_chunks = pipeline.ingest(args.corpus_dir)
     print(f"\nIngestion complete: {n_chunks} chunks indexed.")
