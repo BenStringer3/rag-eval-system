@@ -4,26 +4,23 @@ from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import yaml
 from deepeval.models import GPTModel
+from openai import LengthFinishReasonError
 
 # DeepEval forwards unknown GPTModel kwargs to OpenAI(); only client ctor args belong there.
+
+# Cap assistant text in JSONL traces (structured parse failures can be huge).
+_MAX_ASSISTANT_PREVIEW_CHARS = 4000
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
     with open(path) as f:
         return yaml.safe_load(f)
-
-
-def _looks_like_length_finish_error(exc: Exception) -> bool:
-    msg = str(exc).lower()
-    return "lengthfinishreasonerror" in msg or (
-        "finish_reason" in msg and "length" in msg
-    )
 
 
 def _approx_tokens(text: str) -> int:
@@ -35,6 +32,73 @@ def _append_jsonl(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps(payload, ensure_ascii=True) + "\n")
+
+
+def _is_length_finish_error(exc: BaseException, _depth: int = 0) -> bool:
+    """True when the API hit max output tokens mid-response (structured parse fails)."""
+    if isinstance(exc, LengthFinishReasonError):
+        return True
+    if _depth >= 8:
+        return False
+    cause = exc.__cause__
+    if cause is not None and _is_length_finish_error(cause, _depth + 1):
+        return True
+    # Rare: re-wrapped errors; OpenAI's user-facing message is stable.
+    return "length limit was reached" in str(exc).lower()
+
+
+def _openai_length_finish_details(exc: LengthFinishReasonError) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    comp = exc.completion
+    usage = comp.usage
+    if usage is not None:
+        out["usage"] = usage.model_dump()
+    choices = comp.choices or []
+    if not choices:
+        return out
+    ch0 = choices[0]
+    fr = getattr(ch0, "finish_reason", None)
+    if fr is not None:
+        out["finish_reason"] = fr
+    msg = getattr(ch0, "message", None)
+    content = getattr(msg, "content", None) if msg is not None else None
+    if content:
+        cap = _MAX_ASSISTANT_PREVIEW_CHARS
+        out["assistant_content_preview"] = content[:cap]
+        if len(content) > cap:
+            out["assistant_content_preview_truncated"] = True
+    return out
+
+
+def judge_length_finish_trace_record(
+    *,
+    prompt: str,
+    exc: BaseException,
+    judge_provider: str,
+    judge_model: str,
+    max_completion_tokens: int | None,
+    run_id: str | None,
+    dataset_key: str | None,
+    dataset_path: str | None,
+) -> dict[str, Any]:
+    """Structured log line for a judge call that stopped at the output token cap."""
+    payload: dict[str, Any] = {
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "event": "judge_length_finish_error",
+        "error_type": type(exc).__name__,
+        "error_message": str(exc),
+        "run_id": run_id,
+        "dataset_key": dataset_key,
+        "dataset_path": dataset_path,
+        "judge_provider": judge_provider,
+        "judge_model": judge_model,
+        "max_completion_tokens": max_completion_tokens,
+        "prompt_chars": len(prompt),
+        "prompt_est_tokens": _approx_tokens(prompt),
+    }
+    if isinstance(exc, LengthFinishReasonError):
+        payload["openai"] = _openai_length_finish_details(exc)
+    return payload
 
 
 class TracedGPTModel(GPTModel):
@@ -57,38 +121,34 @@ class TracedGPTModel(GPTModel):
             return Path(explicit)
         return Path("artifacts/eval_runs/judge_length_errors.jsonl")
 
-    def _log_length_finish_error(self, prompt: str, exc: Exception) -> None:
-        max_completion_tokens = self.generation_kwargs.get("max_completion_tokens")
-        payload: dict[str, Any] = {
-            "ts": datetime.now(timezone.utc).isoformat(),
-            "event": "judge_length_finish_error",
-            "error_type": type(exc).__name__,
-            "error_message": str(exc),
-            "run_id": os.environ.get("RAG_EVAL_RUN_ID"),
-            "dataset_key": os.environ.get("RAG_EVAL_DATASET_KEY"),
-            "dataset_path": os.environ.get("RAG_EVAL_DATASET_PATH"),
-            "judge_provider": self._judge_provider,
-            "judge_model": self._judge_model_name,
-            "max_completion_tokens": max_completion_tokens,
-            "prompt_chars": len(prompt),
-            "prompt_est_tokens": _approx_tokens(prompt),
-        }
-        _append_jsonl(self._length_error_log_path(), payload)
+    def _maybe_log_length_finish(self, prompt: str, exc: BaseException) -> None:
+        if not _is_length_finish_error(exc):
+            return
+        gen_kw = self.generation_kwargs or {}
+        record = judge_length_finish_trace_record(
+            prompt=prompt,
+            exc=exc,
+            judge_provider=self._judge_provider,
+            judge_model=self._judge_model_name,
+            max_completion_tokens=gen_kw.get("max_completion_tokens"),
+            run_id=os.environ.get("RAG_EVAL_RUN_ID"),
+            dataset_key=os.environ.get("RAG_EVAL_DATASET_KEY"),
+            dataset_path=os.environ.get("RAG_EVAL_DATASET_PATH"),
+        )
+        _append_jsonl(self._length_error_log_path(), record)
 
     def generate(self, prompt: str, schema: Any | None = None):  # type: ignore[override]
         try:
             return super().generate(prompt=prompt, schema=schema)
         except Exception as exc:
-            if _looks_like_length_finish_error(exc):
-                self._log_length_finish_error(prompt=prompt, exc=exc)
+            self._maybe_log_length_finish(prompt, exc)
             raise
 
     async def a_generate(self, prompt: str, schema: Any | None = None):  # type: ignore[override]
         try:
             return await super().a_generate(prompt=prompt, schema=schema)
         except Exception as exc:
-            if _looks_like_length_finish_error(exc):
-                self._log_length_finish_error(prompt=prompt, exc=exc)
+            self._maybe_log_length_finish(prompt, exc)
             raise
 
 
