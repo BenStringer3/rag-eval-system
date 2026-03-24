@@ -49,19 +49,21 @@ bash scripts/setup_lm_studio.sh
 #   lms ps
 
 # 1. Install dependencies
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
+python -m venv .venv
+.venv/bin/pip install -e ".[dev]"
+# Prefer .venv/bin/python (and .venv/bin/pip) so commands work without activating the venv,
+# including in automation where `source .venv/bin/activate` may not run.
 
 # 2. Index the sample corpus (embedding model must be loaded in LM Studio)
-python -m src.rag.ingest --corpus-dir data/corpus
+.venv/bin/python -m src.rag.ingest --corpus-dir data/corpus
 
 # 3. Run eval tests
 # - generation model must be loaded in LM Studio
 # - judge provider is configured in configs/eval.yaml
-pytest -m eval
+.venv/bin/python -m pytest -m eval
 
 # 4. Launch visualization
-python -m src.viz.embedding_explorer
+.venv/bin/python -m src.viz.embedding_explorer
 ```
 
 ## Project Structure
@@ -141,13 +143,14 @@ Example env setup for cloud judge:
 
 ```bash
 export OPENCODE_ZEN_API_KEY="your-key"
-python scripts/run_eval_report.py --dataset data/eval_datasets/starter.json
+# Batch reports call the judge many times; expect many minutes even on the starter dataset.
+.venv/bin/python scripts/run_eval_report.py --dataset data/eval_datasets/starter.json
 ```
 
-If your cloud judge provider rate-limits, start conservative:
+If your cloud judge provider rate-limits, start conservative (slower wall clock, fewer 429s):
 
 ```bash
-python scripts/run_eval_report.py \
+.venv/bin/python scripts/run_eval_report.py \
   --dataset data/eval_datasets/starter.json \
   --max-concurrent 1 \
   --judge-throttle-seconds 5

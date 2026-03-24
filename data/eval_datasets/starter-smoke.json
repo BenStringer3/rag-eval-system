@@ -1,0 +1,17 @@
+{
+  "name": "starter-smoke",
+  "description": "Single-sample smoke dataset for judge connectivity and rate-limit checks.",
+  "version": "0.1.0",
+  "samples": [
+    {
+      "id": "q001",
+      "query": "What is this project about?",
+      "expected_answer": "This project is a local RAG system with evaluation infrastructure built on DeepEval, designed for iterative improvement.",
+      "expected_context": null,
+      "metadata": {
+        "category": "general",
+        "difficulty": "easy"
+      }
+    }
+  ]
+}

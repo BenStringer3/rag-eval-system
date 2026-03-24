@@ -1,0 +1,57 @@
+{
+  "name": "synthetic-smoke",
+  "description": "First five synthetic samples for cloud-judge smoke analysis.",
+  "version": "0.1.0",
+  "samples": [
+    {
+      "id": "syn001",
+      "query": "What is the default STREAM_USER created by install.sh and what groups is it added to?",
+      "expected_answer": "The default STREAM_USER is 'streamdeck'. The user is created with useradd -r -m -s /bin/bash -G video,input,tty streamdeck. On subsequent runs (user already exists), install.sh also runs usermod -aG video,input,tty to ensure group membership stays current.",
+      "expected_context": null,
+      "metadata": {
+        "category": "install",
+        "difficulty": "easy"
+      }
+    },
+    {
+      "id": "syn002",
+      "query": "What environment variable controls whether install.sh skips package and AUR installation, and what must the user do when using it?",
+      "expected_answer": "Setting SKIP_DEPS=1 causes install.sh to skip all package and AUR installation steps. The user must install all dependencies manually before running sudo ./install.sh and must ensure 'sunshine' is on PATH. Supported packages for Arch are: xorg-server, xorg-xrandr, xf86-video-dummy, openbox, xterm, nvidia-utils, wl-clipboard, plus the sunshine and moondeckbuddy-appimage AUR packages.",
+      "expected_context": null,
+      "metadata": {
+        "category": "install",
+        "difficulty": "easy"
+      }
+    },
+    {
+      "id": "syn003",
+      "query": "Where does install.sh write the install configuration after a successful run, what mode is it created with, and what four variables does it contain?",
+      "expected_answer": "install.sh writes /etc/streamdeck/install.conf with mode 644. It contains four variables: STREAM_USER, BUDDY_USER, STREAM_DISPLAY, and STREAM_GROUP. Other scripts (collect-logs.sh, check-input-pipeline.sh, test-full-cycle.sh) source this file to use the same users and paths.",
+      "expected_context": null,
+      "metadata": {
+        "category": "install",
+        "difficulty": "easy"
+      }
+    },
+    {
+      "id": "syn004",
+      "query": "What systemd unit manages the Sunshine service, what User= does it run as, and what does it Require= and After=?",
+      "expected_answer": "The systemd unit is streamdeck-sunshine.service. It runs as User=__STREAM_USER__ (default: streamdeck). It specifies Requires=streamdeck-xorg.service and After=streamdeck-xorg.service, ensuring Xorg starts before Sunshine.",
+      "expected_context": null,
+      "metadata": {
+        "category": "systemd",
+        "difficulty": "easy"
+      }
+    },
+    {
+      "id": "syn005",
+      "query": "What Xorg flags does streamdeck-xorg.service use to start the isolated streaming display, and why are -novtswitch and -sharevts included?",
+      "expected_answer": "The Xorg command in the service template is: /usr/bin/Xorg __STREAM_DISPLAY__ -config /etc/X11/xorg.conf.d/99-streamdeck.conf -configdir \"\" -logfile ${XORG_LOG} -nolisten tcp -novtswitch -sharevts. The -novtswitch flag prevents switching virtual terminals; -sharevts allows Xorg to run without exclusive VT access so it can coexist with the desktop session. -configdir \"\" prevents loading additional configs that could cause NVIDIA driver conflicts.",
+      "expected_context": null,
+      "metadata": {
+        "category": "xorg",
+        "difficulty": "medium"
+      }
+    }
+  ]
+}
