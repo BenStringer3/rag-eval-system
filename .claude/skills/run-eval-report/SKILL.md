@@ -83,6 +83,7 @@ After a run completes:
 1. `artifacts/eval_runs/<UTC>/` path.
 2. Per-dataset folder: `single/` (when `--dataset` is set), or `starter/` / `synthetic/` from config.
 3. Files: `report.md`, `report.json`, `report.csv`, and run root `meta.json`.
+4. To compare several runs: `scripts/summarize_eval_runs.py` aggregates `pass_rate` / `mean_scores` from multiple `artifacts/eval_runs/<UTC>/meta.json` files (see `docs/determinism-2026-03-24.md`).
 
 ## Troubleshooting checklist
 

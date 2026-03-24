@@ -9,7 +9,7 @@ description: Interprets RAG evaluation runs produced by scripts/run_eval_report.
 
 After `python scripts/run_eval_report.py` (repo root, package installed):
 
-- **`artifacts/eval_runs/<UTC>/meta.json`** — run metadata, thresholds, and a **`datasets`** array (each entry: `key`, `path`, `pass_rate`, `mean_scores`).
+- **`artifacts/eval_runs/<UTC>/meta.json`** — run metadata, thresholds, a **`datasets`** array (each entry: `key`, `path`, `pass_rate`, `mean_scores`), and **`eval_context`** (generation/judge model ids and temperatures). Aggregate several runs with **`scripts/summarize_eval_runs.py`** (see `docs/determinism-2026-03-24.md`).
 - **`artifacts/eval_runs/<UTC>/<dataset_key>/report.md`** — per-dataset readable breakdown with judge reasons (`dataset_key` matches keys under `configs/eval.yaml` → `datasets`, e.g. `starter`, `synthetic`; a one-off `--dataset` run uses that file’s basename).
 - **`.../<dataset_key>/report.json`** — full `EvalReport` for that dataset.
 - **`.../<dataset_key>/report.csv`** — one row per sample, metric columns.
