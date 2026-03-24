@@ -38,6 +38,7 @@ dev = [
     "ruff>=0.4.0",
     "mypy>=1.8.0",
     "ipykernel>=6.0.0",
+    "scipy>=1.11.0",
 ]
 phoenix = [
     "arize-phoenix>=5.0.0",
