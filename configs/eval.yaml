@@ -5,10 +5,9 @@ judge:
   # - openai: use judge.openai.* (cloud)
   # - local: use configs/default.yaml -> lm_studio.* (LM Studio)
   provider: "openai"
-  # Judge model id passed to chat.completions.create.
-  # gpt-4o-mini supports native structured output / JSON mode and is low-cost.
-  model: "gpt-4o-mini"
-  # Sampling temperature for judge outputs (0 = deterministic).
+  # Dated snapshot so OpenAI weight rollouts do not silently change judge behavior across weeks.
+  model: "gpt-4o-mini-2024-07-18"
+  # Sampling temperature for judge outputs (0 = greedy).
   temperature: 0
   openai:
     # OpenAI API base URL for cloud judge calls.
