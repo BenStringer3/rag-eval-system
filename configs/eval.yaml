@@ -17,9 +17,11 @@ judge:
     # Environment variable name containing the OpenAI API key.
     # Expected in runtime env (for example via .env loading in your shell).
     api_key_env: "OPENAI_API_KEY"
-  # Intentionally omit generation_kwargs.response_format here.
-  # For this model, DeepEval uses the schema-enforced parse path when available,
-  # which is stricter than plain json_object mode.
+  # Forwarded to chat.completions.create on every judge call.
+  # Cap completion length to avoid runaway judge responses causing
+  # LengthFinishReasonError in structured parse mode.
+  generation_kwargs:
+    max_completion_tokens: 1200
 
 metrics:
   # Core RAG metrics (DeepEval built-in)

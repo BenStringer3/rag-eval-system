@@ -132,17 +132,21 @@ DeepEval judge calls are configured in `configs/eval.yaml` under `judge`.
 
 - Cloud judge (current default):
   - `judge.provider: "openai"`
-  - `judge.model: "minimax-m2.5-free"`
-  - `judge.openai.base_url: "https://opencode.ai/zen/v1"`
-  - `judge.openai.api_key_env: "OPENCODE_ZEN_API_KEY"`
+  - `judge.model: "gpt-4o-mini"`
+  - `judge.openai.base_url: "https://api.openai.com/v1"`
+  - `judge.openai.api_key_env: "OPENAI_API_KEY"`
 - Local judge (switch back later):
   - set `judge.provider: "local"`
   - set `judge.model` to your loaded LM Studio judge model id
 
+Judge outputs must be valid for DeepEval's native parsing path. This repo intentionally does
+not apply model-specific sanitizers or JSON compatibility shims; if a judge model emits
+non-compliant output, treat it as unsupported and switch to a more reliable judge model.
+
 Example env setup for cloud judge:
 
 ```bash
-export OPENCODE_ZEN_API_KEY="your-key"
+export OPENAI_API_KEY="your-key"
 # Batch reports call the judge many times; expect many minutes even on the starter dataset.
 .venv/bin/python scripts/run_eval_report.py --dataset data/eval_datasets/starter.json
 ```

@@ -20,7 +20,7 @@ Use DeepEval as the primary evaluation framework.
 - Framework-agnostic — no LangChain/LlamaIndex lock-in
 - Can wrap RAGAS metrics if needed (`deepeval.metrics.ragas`)
 - Roadmap includes agentic eval metrics (task completion, tool correctness)
-- JSON confinement mechanisms handle weaker local LLM judges
+- Judge path is fail-fast: non-compliant model outputs are treated as unsupported instead of sanitized with model-specific compatibility shims
 
 **Consequences:**
 - LLM-as-judge metrics require a capable local model (≥14B params recommended)
