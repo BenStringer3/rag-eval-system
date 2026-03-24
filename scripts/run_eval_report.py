@@ -80,6 +80,18 @@ def _parse_args() -> argparse.Namespace:
         help="Pass threshold for retrieval metrics.",
     )
     p.add_argument(
+        "--max-concurrent",
+        type=int,
+        default=3,
+        help="Max concurrent judge requests sent to LM Studio (default: 3). Lower if you see timeouts.",
+    )
+    p.add_argument(
+        "--per-task-timeout",
+        type=int,
+        default=600,
+        help="Per-task timeout in seconds for DeepEval (default: 600). Raise for slow local judges.",
+    )
+    p.add_argument(
         "-q",
         "--quiet",
         action="store_true",
@@ -91,6 +103,12 @@ def _parse_args() -> argparse.Namespace:
 def main() -> int:
     args = _parse_args()
     sys.path.insert(0, str(ROOT))
+
+    # Set DeepEval timeout env vars before any deepeval import (settings read at import time).
+    import os
+    os.environ.setdefault(
+        "DEEPEVAL_PER_TASK_TIMEOUT_SECONDS_OVERRIDE", str(args.per_task_timeout)
+    )
 
     from src.eval.eval_config import enabled_dataset_paths
     from src.eval.report import to_json, to_markdown, to_csv
@@ -124,6 +142,7 @@ def main() -> int:
             verbose=not args.quiet,
             default_config_path=args.config,
             eval_config_path=args.eval_config,
+            max_concurrent=args.max_concurrent,
         )
 
         sub = run_dir / ds_key

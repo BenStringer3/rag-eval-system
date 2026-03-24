@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from deepeval import evaluate
-from deepeval.evaluate.configs import DisplayConfig
+from deepeval.evaluate.configs import AsyncConfig, DisplayConfig, ErrorConfig
 
 from src.data.schemas import EvalReport, EvalResult, MetricScore
 from src.eval.datasets import load_eval_dataset, to_deepeval_test_cases
@@ -27,6 +27,7 @@ def run_evaluation(
     verbose: bool = True,
     default_config_path: str | Path = "configs/default.yaml",
     eval_config_path: str | Path = "configs/eval.yaml",
+    max_concurrent: int = 5,
 ) -> EvalReport:
     """Run a full evaluation of the RAG pipeline on a dataset.
 
@@ -63,6 +64,11 @@ def run_evaluation(
         test_cases,
         metrics,
         display_config=DisplayConfig(print_results=verbose),
+        async_config=AsyncConfig(
+            max_concurrent=max_concurrent,
+            throttle_value=1,
+        ),
+        error_config=ErrorConfig(ignore_errors=True),
     )
 
     if len(evaluation_result.test_results) != len(dataset.samples):
