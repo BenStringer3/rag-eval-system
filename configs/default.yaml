@@ -17,21 +17,31 @@ embedding:
   document_prefix: "search_document: "
 
 chunking:
-  strategy: "recursive"  # Options: recursive, semantic (phase 3)
-  chunk_size: 512
-  chunk_overlap: 64
+  # Options: recursive (current), semantic / tree-sitter (phase 3).
+  # See docs/rag-improvements-2026-03-24.md for chunk size rationale and sources.
+  strategy: "recursive"
+  chunk_size: 1024
+  chunk_overlap: 128
   # File-type-specific overrides
   overrides:
     markdown:
+      # 1024 chars keeps most documentation sections whole; avoids mid-sentence
+      # splits that caused syn003-style "I don't know" failures in the eval.
+      # 12.5% overlap (128/1024) — within the 10–20% range recommended by
+      # Firecrawl 2026 benchmarks for dense retrievers.
+      chunk_size: 1024
+      chunk_overlap: 128
+      separators: ["\n## ", "\n### ", "\n#### ", "\n\n", "\n", " "]
+    code:
+      # Code chunks stay smaller — function bodies are typically 200–400 chars.
+      # Phase 3: replace with tree-sitter AST-aware chunking (chonkie CodeChunker
+      # or treesitter-chunker) for proper function/class boundary splitting.
       chunk_size: 512
       chunk_overlap: 64
-      separators: ["\n## ", "\n### ", "\n\n", "\n", " "]
-    code:
-      chunk_size: 256
-      chunk_overlap: 32
-      separators: ["\nclass ", "\ndef ", "\n\n", "\n", " "]
+      separators: ["\nclass ", "\ndef ", "\nasync def ", "\n\n", "\n", " "]
     mermaid:
-      chunk_size: 1024   # Mermaid diagrams should stay whole when possible
+      # Mermaid diagrams should stay whole when possible.
+      chunk_size: 1024
       chunk_overlap: 0
       separators: ["\n\n", "\n"]
 
@@ -52,12 +62,12 @@ generation:
   max_tokens: 1024
   # Additional chat.completions parameters for the app generation path.
   # Keep empty unless you need model-specific behavior beyond the defaults above.
+  # Grounding constraint: "ONLY" + explicit prohibition of outside knowledge
+  # targets the 6 faithfulness failures from the 2026-03-24 eval.
   system_prompt: |
-    You are a helpful assistant that answers questions based on the provided context.
-    Always ground your answers in the retrieved context. If the context doesn't contain
-    enough information to answer, say so explicitly.
+    You are a technical assistant. Answer questions using ONLY the provided context.
+    Do not add information from your own knowledge — if the context does not contain
+    enough information, say what is missing rather than guessing.
 
     Context:
     {context}
-
-    Question: {query}
