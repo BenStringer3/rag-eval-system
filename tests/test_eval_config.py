@@ -12,12 +12,13 @@ from src.eval.eval_config import enabled_dataset_paths
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_enabled_dataset_paths_includes_starter_and_synthetic():
+def test_enabled_dataset_paths_matches_default_eval_yaml():
     paths = enabled_dataset_paths(ROOT / "configs/eval.yaml", project_root=ROOT)
     by_key = dict(paths)
-    assert "starter" in by_key and "synthetic" in by_key
-    assert by_key["starter"] == ROOT / "data/eval_datasets/starter.json"
+    # Default repo eval.yaml has synthetic enabled; starter is often disabled.
+    assert "synthetic" in by_key
     assert by_key["synthetic"] == ROOT / "data/eval_datasets/synthetic.json"
+    assert by_key["synthetic"].is_file()
 
 
 def test_enabled_dataset_paths_respects_enabled_false(tmp_path: Path):
