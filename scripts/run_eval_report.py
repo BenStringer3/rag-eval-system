@@ -21,6 +21,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -125,6 +127,11 @@ def main() -> int:
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     run_dir: Path = args.output_dir / stamp
     run_dir.mkdir(parents=True, exist_ok=True)
+    # Judge wrapper reads these env vars to write run-scoped JSONL traces.
+    os.environ["RAG_EVAL_RUN_ID"] = stamp
+    os.environ["RAG_EVAL_JUDGE_TRACE_PATH"] = str(
+        (run_dir / "judge_length_errors.jsonl").resolve()
+    )
 
     if args.dataset is not None:
         to_run = [("single", args.dataset.resolve())]
@@ -139,6 +146,8 @@ def main() -> int:
     for ds_key, ds_path in to_run:
         if not ds_path.is_file():
             raise FileNotFoundError(f"Eval dataset not found: {ds_path}")
+        os.environ["RAG_EVAL_DATASET_KEY"] = ds_key
+        os.environ["RAG_EVAL_DATASET_PATH"] = str(ds_path)
 
         report = run_evaluation(
             pipeline,
@@ -170,6 +179,13 @@ def main() -> int:
             }
         )
 
+    with open(args.config, encoding="utf-8") as f:
+        default_cfg = yaml.safe_load(f)
+    with open(args.eval_config, encoding="utf-8") as f:
+        eval_cfg = yaml.safe_load(f)
+    judge_cfg = eval_cfg["judge"]
+    gen_cfg = default_cfg["generation"]
+
     meta = {
         "run_id": stamp,
         "datasets": per_dataset_meta,
@@ -178,6 +194,12 @@ def main() -> int:
         "include_custom_metrics": args.include_custom,
         "core_threshold": args.core_threshold,
         "retrieval_threshold": args.retrieval_threshold,
+        "eval_context": {
+            "generation_model": gen_cfg["model"],
+            "generation_temperature": gen_cfg["temperature"],
+            "judge_model": judge_cfg["model"],
+            "judge_temperature": judge_cfg.get("temperature"),
+        },
     }
     (run_dir / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
