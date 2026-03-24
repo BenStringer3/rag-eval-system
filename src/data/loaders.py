@@ -120,7 +120,7 @@ def load_corpus(corpus_dir: str | Path) -> list[tuple[str, DocumentMeta]]:
         if path.is_file() and path.suffix in supported_extensions:
             # Skip hidden files and common non-content directories
             parts = path.relative_to(corpus_dir).parts
-            if any(p.startswith(".") or p in ("node_modules", "__pycache__", ".git") for p in parts):
+            if any(p.startswith(".") or p in ("node_modules", "__pycache__", ".git", "logs") for p in parts):
                 continue
             try:
                 doc = load_document(path)
