@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -24,6 +25,21 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _git_short_sha(cwd: Path) -> str | None:
+    try:
+        r = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=5,
+        )
+        return r.stdout.strip() or None
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+        return None
 
 
 def _parse_args() -> argparse.Namespace:
@@ -186,6 +202,8 @@ def main() -> int:
     judge_cfg = eval_cfg["judge"]
     gen_cfg = default_cfg["generation"]
 
+    retrieval = default_cfg.get("retrieval") or {}
+    hybrid = retrieval.get("hybrid") or {}
     meta = {
         "run_id": stamp,
         "datasets": per_dataset_meta,
@@ -199,6 +217,10 @@ def main() -> int:
             "generation_temperature": gen_cfg["temperature"],
             "judge_model": judge_cfg["model"],
             "judge_temperature": judge_cfg.get("temperature"),
+        },
+        "git_commit": _git_short_sha(ROOT),
+        "retrieval_features": {
+            "hybrid_enabled": bool(hybrid.get("enabled", False)),
         },
     }
     (run_dir / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
