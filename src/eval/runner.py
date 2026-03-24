@@ -28,6 +28,7 @@ def run_evaluation(
     default_config_path: str | Path = "configs/default.yaml",
     eval_config_path: str | Path = "configs/eval.yaml",
     max_concurrent: int = 5,
+    judge_throttle_seconds: int = 1,
 ) -> EvalReport:
     """Run a full evaluation of the RAG pipeline on a dataset.
 
@@ -40,6 +41,7 @@ def run_evaluation(
         verbose: Print progress and results.
         default_config_path: Pipeline YAML (provides lm_studio base_url / api_key).
         eval_config_path: Eval YAML (provides judge model name / temperature).
+        judge_throttle_seconds: Delay between async judge tasks to reduce rate limits.
 
     Returns:
         EvalReport with all results.
@@ -66,7 +68,7 @@ def run_evaluation(
         display_config=DisplayConfig(print_results=verbose),
         async_config=AsyncConfig(
             max_concurrent=max_concurrent,
-            throttle_value=1,
+            throttle_value=judge_throttle_seconds,
         ),
         error_config=ErrorConfig(ignore_errors=True),
     )

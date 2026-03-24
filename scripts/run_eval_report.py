@@ -87,6 +87,12 @@ def _parse_args() -> argparse.Namespace:
         help="Max concurrent judge requests sent by DeepEval (default: 3). Lower if you see timeouts/rate limits.",
     )
     p.add_argument(
+        "--judge-throttle-seconds",
+        type=int,
+        default=3,
+        help="Seconds DeepEval waits between judge tasks (default: 3). Increase to reduce provider rate limits.",
+    )
+    p.add_argument(
         "--per-task-timeout",
         type=int,
         default=600,
@@ -144,6 +150,7 @@ def main() -> int:
             default_config_path=args.config,
             eval_config_path=args.eval_config,
             max_concurrent=args.max_concurrent,
+            judge_throttle_seconds=args.judge_throttle_seconds,
         )
 
         sub = run_dir / ds_key

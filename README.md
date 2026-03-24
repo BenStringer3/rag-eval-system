@@ -144,6 +144,15 @@ export OPENCODE_ZEN_API_KEY="your-key"
 python scripts/run_eval_report.py --dataset data/eval_datasets/starter.json
 ```
 
+If your cloud judge provider rate-limits, start conservative:
+
+```bash
+python scripts/run_eval_report.py \
+  --dataset data/eval_datasets/starter.json \
+  --max-concurrent 1 \
+  --judge-throttle-seconds 5
+```
+
 ## Phase Roadmap
 
 ### Phase 1 — Foundation ✓

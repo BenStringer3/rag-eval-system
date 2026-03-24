@@ -6,7 +6,7 @@ judge:
   # - local: use configs/default.yaml -> lm_studio.* (LM Studio)
   provider: "openai"
   # Judge model id passed to chat.completions.create.
-  model: "minimax-m2.5-free"
+  model: "minimax-m2.5"
   # Sampling temperature for judge outputs (0 = deterministic).
   temperature: 0
   openai:
@@ -17,21 +17,11 @@ judge:
     # Expected in runtime env (for example via .env loading in your shell).
     api_key_env: "OPENCODE_ZEN_API_KEY"
   # Forwarded to chat.completions.create on every judge call.
-  # LM Studio 0.4.x accepts response_format.type values "json_schema" and "text".
-  # We request JSON-object output shape to improve parse reliability for DeepEval metrics.
+  # Some cloud providers reject json_schema response_format for chat completions.
+  # Use plain text and let DeepEval parse JSON from the response body.
   generation_kwargs:
     response_format:
-      type: json_schema
-      json_schema:
-        # Name is required by OpenAI-compatible structured output payloads.
-        name: "deepeval_judge_response"
-        # strict=false keeps schema permissive because different DeepEval metrics
-        # ask the judge for different JSON keys.
-        strict: false
-        schema:
-          # Require top-level JSON object while allowing metric-specific fields.
-          type: object
-          additionalProperties: true
+      type: text
 
 metrics:
   # Core RAG metrics (DeepEval built-in)
