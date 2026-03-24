@@ -70,7 +70,7 @@ def run_evaluation(
             max_concurrent=max_concurrent,
             throttle_value=judge_throttle_seconds,
         ),
-        error_config=ErrorConfig(ignore_errors=True),
+        error_config=ErrorConfig(ignore_errors=False),
     )
 
     if len(evaluation_result.test_results) != len(dataset.samples):
