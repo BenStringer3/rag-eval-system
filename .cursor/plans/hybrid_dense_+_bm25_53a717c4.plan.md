@@ -4,25 +4,25 @@ overview: Add a lexical (BM25) index built at ingest time alongside the existing
 todos:
   - id: bm25-module
     content: "Add src/rag/bm25_index.py: tokenize, build/search, persist/load keyed by chunk_id"
-    status: pending
+    status: completed
   - id: store-get-by-ids
     content: Add VectorStore.get_chunks(ids) using collection.get for rehydrate after fusion
-    status: pending
+    status: completed
   - id: retriever-fusion
     content: "Extend Retriever: optional hybrid path, RRF, then existing dedup + top_k"
-    status: pending
+    status: completed
   - id: pipeline-ingest
     content: "Pipeline.ingest: build+save BM25 after add_chunks; reset clears BM25 file"
-    status: pending
+    status: completed
   - id: config-yaml
     content: configs/default.yaml retrieval.hybrid* with field comments; from_config wiring
-    status: pending
+    status: completed
   - id: deps
     content: Add BM25 dependency to pyproject.toml
-    status: pending
+    status: completed
   - id: retrieval-timings
     content: Optional per-stage ms on RAGResult (dense, bm25, fuse+dedup) or debug log for A/B vs dense-only
-    status: pending
+    status: completed
 isProject: false
 ---
 
