@@ -147,17 +147,15 @@ Example env setup for cloud judge:
 
 ```bash
 export OPENAI_API_KEY="your-key"
-# Batch reports call the judge many times; expect many minutes even on the starter dataset.
-.venv/bin/python scripts/run_eval_report.py --dataset data/eval_datasets/starter.json
+# Eval runs log directly to MLflow; expect many minutes even on the starter dataset.
+.venv/bin/python scripts/run_eval.py --dataset data/eval_datasets/starter.json
 ```
 
 If your cloud judge provider rate-limits, start conservative (slower wall clock, fewer 429s):
 
 ```bash
-.venv/bin/python scripts/run_eval_report.py \
-  --dataset data/eval_datasets/starter.json \
-  --max-concurrent 1 \
-  --judge-throttle-seconds 5
+.venv/bin/python scripts/run_eval.py \
+  --dataset data/eval_datasets/starter.json
 ```
 
 ## Phase Roadmap

@@ -9,37 +9,21 @@ invocations with **no pipeline changes**. Treat **comparability** as a property 
 ## Comparing runs (recommended workflow)
 
 1. Keep **configs, corpus, and index** fixed while you repeat.
-2. Run **`scripts/run_eval_report.py`** at least **three times** with the same flags
-   (use throttling if the cloud judge rate-limits, e.g. `--max-concurrent 1`
-   `--judge-throttle-seconds 5`).
-3. Point **`scripts/summarize_eval_runs.py`** at the resulting timestamp folders;
-   it reads only each run’s **`meta.json`** and prints min / max / median (and stdev
-   when there are at least three runs) for **`pass_rate`** and each **`mean_scores`**
-   metric per dataset.
+2. Run **`scripts/run_eval.py`** at least **three times** with the same dataset and
+   config.
+3. Compare the resulting MLflow runs by filtering on dataset tags and reading the
+   logged `pass_rate` plus per-metric pass-rate metrics.
 
 Example:
 
 ```bash
 for _ in 1 2 3; do
-  .venv/bin/python scripts/run_eval_report.py --max-concurrent 1 --judge-throttle-seconds 5
+  .venv/bin/python scripts/run_eval.py --dataset data/eval_datasets/synthetic.json
 done
-
-.venv/bin/python scripts/summarize_eval_runs.py \
-  artifacts/eval_runs/20260324T175312Z \
-  artifacts/eval_runs/20260324T180009Z \
-  artifacts/eval_runs/20260324T181000Z
 ```
 
-Replace the three paths with your actual `artifacts/eval_runs/<UTC>/` directories.
-Per-dataset reports live under `<UTC>/<dataset_key>/` (e.g. `synthetic/`), matching
-keys in `configs/eval.yaml` → `datasets`.
-
-Each **`meta.json`** also includes a small **`eval_context`** block (generation and
-judge model ids and temperatures) so you can confirm two compared batches used the same
-scoring setup without diffing YAML.
-
-For **SQL-backed history** (ingest many runs, filter by `hybrid_enabled`, optional
-t-tests across run groups), see [eval-registry.md](eval-registry.md).
+Use the MLflow UI or `mlflow.search_runs()` to compare the runs. The tracking backend
+is now `sqlite:///data/mlflow.db`; see [eval-registry.md](eval-registry.md).
 
 ---
 
@@ -149,9 +133,8 @@ embedding model produced stable top-k for identical queries on an unchanged inde
   diversity; does not guarantee identical text).
 - **Judge:** dated snapshot id in **`configs/eval.yaml`** (stable **scorer** across
   weeks vs a rolling `gpt-4o-mini` alias).
-- **Artifacts:** **`meta.json`** includes **`eval_context`** (model ids and
-  temperatures) for audit; aggregates for comparison come from **`datasets`** +
-  **`summarize_eval_runs.py`**.
+- **Tracking:** MLflow logs run params, tags, scorer outputs, and traces under
+  `sqlite:///data/mlflow.db`.
 
 ---
 

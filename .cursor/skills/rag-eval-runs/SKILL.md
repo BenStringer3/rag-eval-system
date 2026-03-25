@@ -1,20 +1,19 @@
 ---
 name: rag-eval-runs
-description: Interprets RAG evaluation runs produced by scripts/run_eval_report.py (artifacts/eval_runs), explains DeepEval metrics (faithfulness, answer relevancy, contextual precision/recall), diagrams failure modes with Mermaid, and troubleshoots retrieval vs generation vs gold issues. Use when the user mentions eval runs, report.md, report.json, eval pass rate, DeepEval metrics, or analyzing artifacts/eval_runs. Reports live under per-dataset subfolders (e.g. starter/, synthetic/).
+description: Interprets MLflow-backed RAG evaluation runs produced by scripts/run_eval.py, explains DeepEval-derived metrics (faithfulness, answer relevancy, contextual precision/recall), and troubleshoots retrieval vs generation vs gold issues through MLflow traces and run metrics.
 ---
 
-# RAG eval runs (DeepEval batch reports)
+# RAG eval runs (MLflow)
 
-## Artifacts layout
+## Run layout
 
-After `python scripts/run_eval_report.py` (repo root, package installed):
+After `python scripts/run_eval.py`:
 
-- **`artifacts/eval_runs/<UTC>/meta.json`** — run metadata, thresholds, a **`datasets`** array (each entry: `key`, `path`, `pass_rate`, `mean_scores`), and **`eval_context`** (generation/judge model ids and temperatures). Aggregate several runs with **`scripts/summarize_eval_runs.py`** (see `docs/determinism-2026-03-24.md`).
-- **`artifacts/eval_runs/<UTC>/<dataset_key>/report.md`** — per-dataset readable breakdown with judge reasons (`dataset_key` matches keys under `configs/eval.yaml` → `datasets`, e.g. `starter`, `synthetic`; a one-off `--dataset` run uses that file’s basename).
-- **`.../<dataset_key>/report.json`** — full `EvalReport` for that dataset.
-- **`.../<dataset_key>/report.csv`** — one row per sample, metric columns.
+- **MLflow run** — root metrics like `pass_rate` and per-metric pass rates
+- **MLflow trace** — root predict call plus child `RETRIEVER` and `LLM` spans
+- **MLflow scorer feedback** — row-level rationales and scores attached to the run
 
-Default behavior runs **every enabled** dataset listed in `configs/eval.yaml` (`enabled: false` skips one). Latest run: pick the **newest** timestamp folder under `artifacts/eval_runs/` if unspecified.
+Default behavior runs every enabled dataset in `configs/eval.yaml`. A one-off `--dataset` run logs tags with `eval.dataset_key=single`.
 
 ## Metric meanings (short)
 
@@ -25,9 +24,9 @@ Default behavior runs **every enabled** dataset listed in `configs/eval.yaml` (`
 
 ## Interpretation pattern
 
-1. Read **`meta.json`** for per-dataset aggregates (`datasets` array).
-2. List samples where **`passed_all`** is false (from JSON or markdown ❌).
-3. For each failure, map judge **reason** to a **bucket**:
+1. Read run metrics and tags in MLflow.
+2. Open sample traces with failing scorer feedback.
+3. For each failure, map judge rationale to a bucket:
    - **Retrieval** — recall low, or precision low with irrelevant top chunks.
    - **Generation** — recall ok but faithfulness/relevancy low.
    - **Corpus / gold** — mixed unrelated documents in the index; gold assumes facts not present in any reasonable chunk.
@@ -52,14 +51,13 @@ When the user asks for a visual, use **Mermaid** (`flowchart` or `flowchart TB`)
 
 ## Repo touchpoints
 
-- **Script:** `scripts/run_eval_report.py`
+- **Script:** `scripts/run_eval.py`
 - **Dataset registry:** `configs/eval.yaml` → `datasets`, resolved by `src/eval/eval_config.py`
-- **Runner / aggregation:** `src/eval/runner.py`, `src/eval/report.py`, `src/data/schemas.py` (`EvalReport`, `MetricScore`)
-- **Metrics:** `src/eval/metrics.py`, thresholds from `run_evaluation` / CLI flags
+- **Dataset adapter / scorers:** `src/eval/datasets.py`, `src/eval/scorers.py`
 - **Pipeline:** `src/rag/pipeline.py`, `configs/default.yaml`, eval set under `data/eval_datasets/`
 
 ## Worked pattern (example class of failures)
 
 - **Broad question (“What is this project about?”) + gold describing only RAG eval** but **retrieval returns another large topic** (e.g. streaming setup) → **contextual recall** collapses (gold facts absent from chunks); relevancy may pass weakly while the answer follows retrieved text (**faithfulness** can still be “ok” relative to wrong chunks). Fix is primarily **retrieval/corpus**, not the judge.
 
-When explaining a specific run, cite **`sample_id`**, the **query**, and short excerpts from **`report.json`** retrieval context or judge **reason** fields.
+When explaining a specific run, cite **`sample_id`**, the **query**, and the relevant MLflow trace span or scorer rationale.

@@ -1,95 +1,66 @@
-# Eval registry (SQLite)
+# Eval tracking (MLflow)
 
-The eval registry is a **queryable index** over completed runs under `artifacts/eval_runs/<UTC>/`. It does **not** replace `meta.json` or `report.json`; those remain the source of truth for full detail.
+The old SQLite eval registry has been removed. Evaluation now writes directly to **MLflow** using `mlflow.genai.evaluate()`, native DeepEval scorers, and traced RAG spans.
 
-- **Database path:** `data/eval_registry.db` (gitignored). Create it by ingesting runs.
-- **Schema:** [`src/eval/registry_db.py`](../src/eval/registry_db.py) — tables `runs` and `sample_results`.
+- **Tracking DB:** `data/mlflow.db` (gitignored)
+- **Run UI:** `mlflow ui --backend-store-uri sqlite:///data/mlflow.db`
+- **Primary script:** `scripts/run_eval.py`
+- **A/B script:** `scripts/run_ab_study.py`
 
-## Ingest
+## Standalone eval
 
-After one or more eval batches exist:
-
-```bash
-.venv/bin/python scripts/ingest_eval_registry.py artifacts/eval_runs/20260324T195433Z
-```
-
-Backfill everything under `artifacts/eval_runs/` that has a `meta.json`:
+Single dataset:
 
 ```bash
-.venv/bin/python scripts/ingest_eval_registry.py --all
+.venv/bin/python scripts/run_eval.py --dataset data/eval_datasets/starter.json
 ```
 
-Ingest is **idempotent** on `(run_id, dataset_key)`: re-ingesting updates aggregates and replaces per-sample rows for that run.
-
-**Hybrid flag:** New runs written by `scripts/run_eval_report.py` include `retrieval_features.hybrid_enabled` in `meta.json`. For older runs without that field, ingest reads `retrieval.hybrid.enabled` from the `config` path stored in `meta.json` (fail-fast if the file is missing).
-
-## Query
+All enabled datasets from `configs/eval.yaml`:
 
 ```bash
-.venv/bin/python scripts/query_eval_registry.py last -n 10
-.venv/bin/python scripts/query_eval_registry.py last --dataset single -n 20
-.venv/bin/python scripts/query_eval_registry.py stats
-.venv/bin/python scripts/query_eval_registry.py sql "SELECT run_id, pass_rate, hybrid_enabled FROM runs ORDER BY id DESC LIMIT 5"
+.venv/bin/python scripts/run_eval.py
 ```
 
-## Compare groups (t-test)
-
-Requires **scipy** (`pip install -e '.[dev]'`). Compares **run-level** means for a named metric (keys match `mean_scores` in reports, e.g. `Faithfulness`, `Answer Relevancy`).
+Optional re-ingest before eval:
 
 ```bash
-.venv/bin/python scripts/compare_eval_configs.py \
-  --dataset single \
-  --metric Faithfulness \
-  --group-a 20260324T175312Z,20260324T180009Z \
-  --group-b 20260324T195433Z
+.venv/bin/python scripts/run_eval.py --dataset data/eval_datasets/synthetic.json --ingest
 ```
 
-Use `--paired` only when runs are intentionally paired in order (same length). Default is Welch’s t-test (unpaired, unequal variance).
+Each run logs:
 
-## A/B study (orchestrated)
+- root eval run metadata and tags
+- `pass_rate` plus per-metric pass rates
+- traced `RETRIEVER` spans containing retrieved context
+- traced `LLM` spans for generation
+- scorer feedback from MLflow DeepEval scorers
 
-Agents: see [`.cursor/skills/science-loop/SKILL.md`](../.cursor/skills/science-loop/SKILL.md) (science loop).
+## A/B study
 
-Automated A/B runs write under `artifacts/ab_study/<study_id>/` (`study_meta.json`, `manifest.jsonl`, `eval_runs/<UTC>/`). Successful runs are ingested into the registry unless `--no-ingest`.
-
-**Fixed-N (recommended for interpretable p-values):**
+Fixed-N paired hybrid-vs-dense example:
 
 ```bash
 .venv/bin/python scripts/run_ab_study.py \
   --dataset data/eval_datasets/synthetic.json \
-  --arm-a-label "dense (hybrid off)" --arm-b-label "hybrid on" \
+  --arm-a-label "dense" \
+  --arm-b-label "hybrid" \
   --arm-a-overrides-json '{"retrieval.hybrid.enabled": false}' \
   --arm-b-overrides-json '{"retrieval.hybrid.enabled": true}' \
-  --pairing paired --n-per-arm 5 \
-  --max-concurrent 1 --judge-throttle-seconds 5
+  --pairing paired \
+  --n-per-arm 3
 ```
 
-**Exploratory sequential** (peek after each block; inflates Type I error—label analysis exploratory):
+The script writes `artifacts/ab_study/<study_id>/study_meta.json` and `manifest.json`, but the source of truth is MLflow. Filter study runs in the UI or with `mlflow.search_runs()` using `tags.study_id`.
 
-```bash
-.venv/bin/python scripts/run_ab_study.py \
-  --dataset data/eval_datasets/starter.json \
-  --arm-a-label "dense (hybrid off)" --arm-b-label "hybrid on" \
-  --arm-a-overrides-json '{"retrieval.hybrid.enabled": false}' \
-  --arm-b-overrides-json '{"retrieval.hybrid.enabled": true}' \
-  --pairing paired --exploratory \
-  --min-per-arm 2 --max-per-arm 10 --alpha 0.05 \
-  --primary-metric pass_rate
-```
+## Verification
 
-**Report** (Plotly HTML under `docs/_figures/ab-study-<study_id>/`, markdown in `docs/`):
+To confirm retrieval context wiring after a run:
 
-```bash
-.venv/bin/python scripts/render_ab_study_report.py \
-  --study-dir artifacts/ab_study/<study_id>
-```
-
-Failed eval subprocesses are logged in `manifest.jsonl` with `status: failed`; optional `--retries` repeats an arm. Do not ingest incomplete run folders.
-
-## Variance and multi-run workflow
-
-Judge and generator noise still apply; the registry helps **filter and aggregate**, not remove variance. For medians without SQL, see [`scripts/summarize_eval_runs.py`](../scripts/summarize_eval_runs.py) and [determinism-2026-03-24.md](determinism-2026-03-24.md).
+1. Open the MLflow trace for a sample.
+2. Check for a top-level `RETRIEVER` span.
+3. Confirm its outputs contain chunk payloads with `page_content`.
+4. Confirm scorer results are present on the same eval run.
 
 ## Cursor skill
 
-Agents: see [`.cursor/skills/eval-registry/SKILL.md`](../.cursor/skills/eval-registry/SKILL.md).
+Agents: see [`.cursor/skills/eval-registry/SKILL.md`](../.cursor/skills/eval-registry/SKILL.md) and [`.cursor/skills/science-loop/SKILL.md`](../.cursor/skills/science-loop/SKILL.md).

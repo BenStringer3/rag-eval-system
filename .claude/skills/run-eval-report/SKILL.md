@@ -1,13 +1,13 @@
 ---
 name: run-eval-report
-description: Runs scripts/run_eval_report.py end-to-end in rag-eval-system via .venv/bin/python, dataset selection (starter vs synthetic), long-running DeepEval/judge expectations, and optional rate-limit-safe flags. Use when the user asks to run eval reports, benchmark datasets, or regenerate artifacts/eval_runs outputs.
+description: Runs scripts/run_eval.py end-to-end in rag-eval-system via .venv/bin/python, dataset selection (starter vs synthetic), and MLflow-backed output inspection. Use when the user asks to run evals or benchmark datasets.
 ---
 
-# Run eval report skill
+# Run eval skill
 
 ## Purpose
 
-Execute `scripts/run_eval_report.py` in `rag-eval-system` with explicit dataset choice:
+Execute `scripts/run_eval.py` in `rag-eval-system` with explicit dataset choice:
 
 - `data/eval_datasets/starter.json` — fewer samples; still **many minutes** (cloud judge + per-sample metrics).
 - `data/eval_datasets/synthetic.json` — larger; expect **much longer** (tens of minutes to hours depending on size and throttling).
@@ -26,12 +26,12 @@ Execute `scripts/run_eval_report.py` in `rag-eval-system` with explicit dataset 
 2. **Canonical Python:** use the venv interpreter directly (reliable in automation and when `activate` fails):
 
 ```bash
-.venv/bin/python scripts/run_eval_report.py --help
+.venv/bin/python scripts/run_eval.py --help
 ```
 
 3. Optional: `source .venv/bin/activate` then `python ...` only if activation works in your shell; otherwise always use `.venv/bin/python`.
 4. If `.venv` is missing, stop and tell the user to create it (e.g. per README); do not invent a fallback interpreter.
-5. Cloud judge: ensure `OPENCODE_ZEN_API_KEY` is set (see README). Shell automation often uses `set -a && source .env && set +a` from repo root before the command if keys live in `.env`.
+5. Judge credentials: ensure the env var named by `configs/eval.yaml` `judge.openai.api_key_env` is set.
 
 ## Standard commands
 
@@ -40,55 +40,48 @@ Replace `...` with the same args as below; prefix every invocation with `.venv/b
 ### Fast-er run (starter dataset)
 
 ```bash
-.venv/bin/python scripts/run_eval_report.py --dataset data/eval_datasets/starter.json
+.venv/bin/python scripts/run_eval.py --dataset data/eval_datasets/starter.json
 ```
 
 ### Fuller run (synthetic dataset)
 
 ```bash
-.venv/bin/python scripts/run_eval_report.py --dataset data/eval_datasets/synthetic.json
+.venv/bin/python scripts/run_eval.py --dataset data/eval_datasets/synthetic.json
 ```
 
 ### Multi-dataset run from config
 
 ```bash
-.venv/bin/python scripts/run_eval_report.py
+.venv/bin/python scripts/run_eval.py
 ```
 
 Runs all **enabled** datasets from `configs/eval.yaml`.
 
 ## Useful optional flags
 
-- `--max-concurrent <n>`: lower parallel judge traffic when rate-limited.
-- `--judge-throttle-seconds <n>`: delay between judge tasks (increases wall time).
-- `--per-task-timeout <seconds>`: raise if judges time out (default 600 in CLI).
-- `--max-retries <n>`: full-run retries when DeepEval returns partial results or throws (default 2).
-- `--retry-backoff-seconds <n>`: base sleep between retries, multiplied by attempt number (default 5).
-- `--include-custom`: extra G-Eval judge calls.
 - `--ingest --corpus-dir data/corpus`: ingest before evaluating.
 
 Conservative cloud judge example (slower wall clock, fewer 429s):
 
 ```bash
-.venv/bin/python scripts/run_eval_report.py \
+.venv/bin/python scripts/run_eval.py \
   --dataset data/eval_datasets/starter.json \
-  --max-concurrent 1 \
-  --judge-throttle-seconds 5
+  --ingest
 ```
 
 ## What to report back
 
 After a run completes:
 
-1. `artifacts/eval_runs/<UTC>/` path.
-2. Per-dataset folder: `single/` (when `--dataset` is set), or `starter/` / `synthetic/` from config.
-3. Files: `report.md`, `report.json`, `report.csv`, and run root `meta.json`.
-4. To compare several runs: `scripts/summarize_eval_runs.py` aggregates `pass_rate` / `mean_scores` from multiple `artifacts/eval_runs/<UTC>/meta.json` files (see `docs/determinism-2026-03-24.md`).
+1. MLflow run id(s).
+2. Dataset key(s) evaluated.
+3. Logged `pass_rate` and any per-metric pass-rate metrics.
+4. Whether the traces include top-level `RETRIEVER` spans.
 
 ## Troubleshooting checklist
 
 - Wrong interpreter → use `.venv/bin/python`, not system `python`, unless you know the venv is active and has deps (system `python` often lacks `pydantic` / project deps).
 - Dataset missing → verify paths under `data/eval_datasets/`.
-- Judge / API → `configs/eval.yaml` `judge` + env (e.g. `OPENCODE_ZEN_API_KEY`).
-- Rate limits / flaky judges → lower `--max-concurrent`, raise `--judge-throttle-seconds`, raise `--per-task-timeout`, and/or `--max-retries` + `--retry-backoff-seconds` for partial DeepEval returns.
-- “Stuck” progress → often normal; wait for DeepEval completion or check provider latency before killing the process.
+- Judge / API → `configs/eval.yaml` `judge` + env.
+- MLflow DB → confirm `tracking.uri` points at a writable SQLite path.
+- Missing retrieval context → inspect the trace and confirm a top-level `RETRIEVER` span exists.

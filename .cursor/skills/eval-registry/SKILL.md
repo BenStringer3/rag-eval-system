@@ -1,38 +1,41 @@
 ---
 name: eval-registry
-description: Ingests and queries the SQLite eval registry (data/eval_registry.db) from meta.json and report.json under artifacts/eval_runs; compares run groups with compare_eval_configs.py; backfill, hybrid_enabled, t-tests. For dense-vs-hybrid orchestration and Plotly reports, use the science-loop skill. Triggers eval registry, ingest eval runs, SQLite eval history, eval_registry.db, query registry, compare eval configs, statistical comparison of eval runs.
+description: Use MLflow as the eval tracking backend in rag-eval-system. Run `scripts/run_eval.py`, inspect `data/mlflow.db`, start `mlflow ui`, and filter runs by tags such as `study_id`, dataset, or retrieval mode. Triggers mlflow eval, mlflow ui, eval tracking, run_eval.py, data/mlflow.db.
 ---
 
-# Eval registry skill
+# Eval tracking skill
 
 ## Purpose
 
-The registry is a **queryable index** over timestamped eval folders. Full artifacts remain under `artifacts/eval_runs/<UTC>/` (`meta.json`, `<dataset_key>/report.json`).
+Evaluation now logs directly to **MLflow**. There is no ingest/query registry layer anymore.
 
-- **Default DB:** `data/eval_registry.db` (gitignored).
-- **Ingest:** `scripts/ingest_eval_registry.py`
-- **Query:** `scripts/query_eval_registry.py`
-- **Stats (t-test):** `scripts/compare_eval_configs.py` (needs **scipy** — `pip install -e '.[dev]'`)
-- **Science loop (A/B studies):** see [`.cursor/skills/science-loop/SKILL.md`](../science-loop/SKILL.md) — `run_ab_study.py` → `render_ab_study_report.py`
+- **Tracking DB:** `data/mlflow.db` (gitignored)
+- **Standalone eval:** `scripts/run_eval.py`
+- **A/B study:** `scripts/run_ab_study.py`
+- **UI:** `mlflow ui --backend-store-uri sqlite:///data/mlflow.db`
 
 ## Commands (use repo venv)
 
 From repo root:
 
 ```bash
-.venv/bin/python scripts/ingest_eval_registry.py --all
-.venv/bin/python scripts/ingest_eval_registry.py artifacts/eval_runs/<UTC>/
-.venv/bin/python scripts/query_eval_registry.py last -n 10
-.venv/bin/python scripts/compare_eval_configs.py --dataset single --metric Faithfulness --group-a RUN1,RUN2 --group-b RUN3,RUN4
+.venv/bin/python scripts/run_eval.py --dataset data/eval_datasets/starter.json
+.venv/bin/python scripts/run_ab_study.py \
+  --dataset data/eval_datasets/synthetic.json \
+  --arm-a-overrides-json '{"retrieval.hybrid.enabled": false}' \
+  --arm-b-overrides-json '{"retrieval.hybrid.enabled": true}' \
+  --n-per-arm 3
+mlflow ui --backend-store-uri sqlite:///data/mlflow.db
 ```
 
 ## Documentation
 
 - User-facing: [docs/eval-registry.md](docs/eval-registry.md)
-- Variance / multi-run medians without DB: [scripts/summarize_eval_runs.py](scripts/summarize_eval_runs.py), [docs/determinism-2026-03-24.md](docs/determinism-2026-03-24.md)
+- Study orchestration: [`.cursor/skills/science-loop/SKILL.md`](../science-loop/SKILL.md)
 
 ## Rules for agents
 
 - Do not treat a single run’s metrics as definitive; see determinism doc.
-- `retrieval_features.hybrid_enabled` is written to new `meta.json` by `run_eval_report.py`; older runs rely on ingest parsing `configs/default.yaml` from `meta.config`.
-- Fail-fast: missing `meta.json` or `report.json` for a dataset raises during ingest.
+- Use MLflow tags instead of rebuilding local registries.
+- Filter A/B studies by `tags.study_id`.
+- Retrieval context verification means checking traced `RETRIEVER` spans, not reading `report.json`.

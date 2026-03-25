@@ -1,6 +1,6 @@
 ---
 name: science-loop
-description: Eval "science loop" in rag-eval-system — run hypothesis-driven experiments by repeatedly running `run_eval_report.py` under controlled config changes, ingesting results into the eval registry, and producing statistically honest comparisons (fixed-N preferred; exploratory optional but clearly labeled). Use when the user asks to test a hypothesis with repeated eval runs, run an A/B study, compare two retrieval/generation configurations, or produce a rigorous report with plots.
+description: Eval "science loop" in rag-eval-system — run hypothesis-driven experiments with `scripts/run_ab_study.py` or repeated `scripts/run_eval.py` runs, using MLflow tags and traces as the system of record. Use when the user asks to test a hypothesis with repeated eval runs, run an A/B study, or compare two retrieval/generation configurations.
 ---
 
 # Science loop skill
@@ -14,13 +14,12 @@ This skill is **experiment-agnostic**: the “treatment” can be *any* configur
 ## Prerequisites
 
 - Repo root; **`.venv/bin/python`** for all scripts.
-- **`scipy`** for stats in the report: `pip install -e '.[dev]'`.
-- Cloud judge API key in env (same as `run_eval_report`).
+- Cloud judge API key in env (same as `run_eval.py`).
 - **One dataset per study** (avoid mixing datasets in a single hypothesis test): pass `--dataset …` or ensure only one dataset is enabled in `configs/eval.yaml`.
 
 ## Wall time
 
-Each replicate is a **full** `run_eval_report.py` pass. A 2‑arm fixed‑N study with `N` per arm is **2N** full evals — multiply by single-run duration (synthetic often **tens of minutes to hours**). Use `--max-concurrent 1` and throttle flags if the judge rate-limits.
+Each replicate is a full `run_eval.py`-equivalent evaluation. A 2-arm fixed-N study with `N` per arm is **2N** eval runs.
 
 ## On invocation (agent behavior)
 
@@ -51,7 +50,7 @@ Choose the runner based on whether the hypothesis can be expressed with the exis
 
 ### Path A — use the built-in 2‑arm orchestrator (current: hybrid on/off)
 
-Use this when the treatment/control differ by a config override that can be expressed as dotted-key YAML changes. Artifacts live under `artifacts/ab_study/<study_id>/` (`study_meta.json`, `manifest.jsonl`, `eval_runs/<UTC>/`). Successful runs are ingested into `data/eval_registry.db` unless `--no-ingest`.
+Use this when the treatment/control differ by a config override that can be expressed as dotted-key YAML changes. Artifacts live under `artifacts/ab_study/<study_id>/` (`study_meta.json`, `manifest.json`), but MLflow is the source of truth.
 
 #### Fixed‑N (preferred for interpretable p-values)
 
@@ -61,55 +60,30 @@ Use this when the treatment/control differ by a config override that can be expr
   --arm-a-label "dense (hybrid off)" --arm-b-label "hybrid on" \
   --arm-a-overrides-json '{"retrieval.hybrid.enabled": false}' \
   --arm-b-overrides-json '{"retrieval.hybrid.enabled": true}' \
-  --pairing paired --n-per-arm 5 \
-  --max-concurrent 1 --judge-throttle-seconds 5
+  --pairing paired --n-per-arm 5
 ```
 
-- **`--pairing paired`:** each block = dense run then hybrid run (same corpus/index); report uses **paired** t-tests when blocks align.
-- **`--pairing none`:** all dense runs, then all hybrid runs; **Welch** t-test in report.
-
-#### Exploratory sequential (honest labeling: inflates Type I error)
-
-```bash
-.venv/bin/python scripts/run_ab_study.py \
-  --dataset data/eval_datasets/starter.json \
-  --arm-a-label "dense (hybrid off)" --arm-b-label "hybrid on" \
-  --arm-a-overrides-json '{"retrieval.hybrid.enabled": false}' \
-  --arm-b-overrides-json '{"retrieval.hybrid.enabled": true}' \
-  --pairing paired --exploratory \
-  --min-per-arm 2 --max-per-arm 10 --alpha 0.05 \
-  --primary-metric pass_rate
-```
-
-#### After the study — report with figures
-
-```bash
-.venv/bin/python scripts/render_ab_study_report.py \
-  --study-dir artifacts/ab_study/<study_id>
-```
-
-Writes `docs/ab-study-<study_id>.md` and Plotly HTML under `docs/_figures/ab-study-<study_id>/`.
+- `--pairing paired`: each block = dense run then hybrid run.
+- `--pairing none`: all A runs then all B runs.
+- Inspect results in MLflow by filtering `tags.study_id`.
 
 ### Path B — experiment not supported by the orchestrator yet (generic workflow)
 
 If the hypothesis is about *any other* config change, run repeated evals yourself (or extend the orchestrator later). The core loop is:
 
 - Create **two temporary config variants** (control/treatment) without changing repo defaults.
-- Run enough replicates per arm via `scripts/run_eval_report.py` (or the study runner you build later).
-- Ingest results into `data/eval_registry.db`.
-- Compare arms using the registry tooling; produce a short written report with the primary result + plots/tables.
-
-Use the eval registry skill for ingest/query/comparisons: [`.cursor/skills/eval-registry/SKILL.md`](../eval-registry/SKILL.md).
+- Run enough replicates per arm via `scripts/run_eval.py` or `scripts/run_ab_study.py`.
+- Compare arms with MLflow run filtering and exported metrics.
+- Produce a short written report with the primary result and any caveats about judge variance.
 
 ### Failures and judge limits (applies to all paths)
 
-- Subprocess **non-zero** or **incomplete** `meta.json` / `report.json` → treat that replicate as **failed**; **do not ingest** it into `data/eval_registry.db`. (In orchestrated studies, failures are recorded in the study `manifest.jsonl` with `status: failed`.)
-- **`--retries N`** / **`--retry-backoff-seconds`:** retry the same arm (new UTC folder per attempt).
-- **`LengthFinishReasonError`** (judge hits output token cap): logged to the run’s `judge_length_errors.jsonl`; eval aborts — not fixed by throttling alone; see `configs/eval.yaml` `generation_kwargs` and determinism doc. Do **not** use DeepEval `ignore_errors=True` for comparable A/B science.
+- Treat failed eval runs symmetrically across arms.
+- Use MLflow traces to confirm retrieval context and scorer wiring before trusting results.
 
 ## Related
 
-- Registry ingest/query: [`.cursor/skills/eval-registry/SKILL.md`](../eval-registry/SKILL.md), [docs/eval-registry.md](docs/eval-registry.md) (Hybrid A/B section).
+- MLflow tracking: [`.cursor/skills/eval-registry/SKILL.md`](../eval-registry/SKILL.md), [docs/eval-registry.md](docs/eval-registry.md).
 - Single eval runs: [`.cursor/skills/run-eval-report/SKILL.md`](../run-eval-report/SKILL.md).
 - Variance: [docs/determinism-2026-03-24.md](docs/determinism-2026-03-24.md).
 
@@ -119,4 +93,4 @@ Use the eval registry skill for ingest/query/comparisons: [`.cursor/skills/eval-
 - Prefer **fixed‑N** when the user wants “proof”; label **exploratory** when doing any sequential peeking.
 - Keep the experiment to **one primary comparison**; if multiple metrics are reported, explicitly mark non-primary metrics exploratory.
 - Poll long runs; do not assume hang after a short idle.
-- When using the orchestrator, pass **`--study-dir`** to `render_ab_study_report.py` as the concrete `artifacts/ab_study/<id>` path printed at the end of the orchestrator.
+- When using the orchestrator, capture the printed `study_id` and inspect runs with `tags.study_id`.

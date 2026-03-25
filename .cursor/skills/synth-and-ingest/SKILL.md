@@ -113,7 +113,7 @@ Tell the user:
 - **Output:** `data/eval_datasets/synthetic.json`
 - **Ingest CLI:** `src/rag/ingest.py` (calls `src/rag/pipeline.py` → `pipeline.ingest(corpus_dir)`)
 - **Schema:** `src/data/schemas.py` → `EvalSample`, `EvalDataset`
-- **Eval config:** `configs/eval.yaml` → `datasets.synthetic` — confirm `enabled: true` so the file is picked up by `scripts/run_eval_report.py`
+- **Eval config:** `configs/eval.yaml` → `datasets.synthetic` — confirm `enabled: true` so the file is picked up by `scripts/run_eval.py`
 - **Existing pairs:** `data/eval_datasets/synthetic.json` — read first; preserve any high-quality hand-written pairs unless the user says to replace all
 
 ---
