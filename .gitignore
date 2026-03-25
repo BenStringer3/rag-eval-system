@@ -19,6 +19,8 @@ env/
 
 # MLflow tracking
 data/mlflow.db
+mlflow.db
+data/eval_registry.db
 mlartifacts/
 
 # Data (large files)

@@ -13,7 +13,9 @@ import pandas as pd
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
+from src.eval.scorers import metric_pass_mask
 
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Run mlflow.genai.evaluate() for the configured RAG app.")
@@ -65,14 +67,12 @@ def _summarize_results(
 
 def main() -> int:
     args = _parse_args()
-    sys.path.insert(0, str(ROOT))
 
     from src.eval.datasets import load_eval_dataset, load_mlflow_eval_data
     from src.eval.eval_config import enabled_dataset_paths
     from src.eval.scorers import (
         build_scorers,
         load_eval_config,
-        metric_pass_mask,
         metric_thresholds,
     )
     from src.rag.pipeline import RAGPipeline

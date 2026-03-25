@@ -10,7 +10,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import mlflow
 import yaml
+from mlflow.entities.span import SpanType
 
 from src.data.loaders import load_corpus
 from src.data.schemas import RAGResult
@@ -174,8 +176,11 @@ class RAGPipeline:
             self.hybrid_index_path.unlink()
         self.retriever.bm25_index = None
 
+    @mlflow.trace(name="rag_query", span_type=SpanType.CHAIN)
     def query(self, question: str) -> RAGResult:
         """Run the full RAG pipeline for a question.
+
+        CHAIN root nests RETRIEVER + LLM so GenAI eval scorers see one trace.
 
         Args:
             question: Natural language question.
