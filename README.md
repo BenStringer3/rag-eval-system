@@ -27,8 +27,6 @@ Designed for iterative improvement — start simple, measure everything, upgrade
 │    • Logs: pass_rate, traces (RETRIEVER, LLM), UI       │
 │                                                         │
 │  Tracking: sqlite:///data/mlflow.db  →  mlflow ui       │
-│                                                         │
-│  Visualization (separate): UMAP embedding explorer     │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -64,9 +62,30 @@ python -m venv .venv
 # - judge provider is configured in configs/eval.yaml
 .venv/bin/python -m pytest -m eval
 
-# 4. Launch visualization
-.venv/bin/python -m src.viz.embedding_explorer
+# 4. Run a standalone MLflow-backed eval
+.venv/bin/python scripts/run_eval.py --dataset data/eval_datasets/starter.json
+
+# 5. Launch MLflow UI (in another terminal)
+# - opens local run browser for metrics, traces, and tags
+# - default URL: http://127.0.0.1:5000
+.venv/bin/mlflow ui --backend-store-uri sqlite:///data/mlflow.db
+
 ```
+
+## MLflow Tracking UI
+
+After running `scripts/run_eval.py` or `scripts/run_ab_study.py`, open the local MLflow UI:
+
+```bash
+.venv/bin/mlflow ui --backend-store-uri sqlite:///data/mlflow.db
+```
+
+Then open [http://127.0.0.1:5000](http://127.0.0.1:5000) and inspect:
+
+- run-level metrics (including `pass_rate`)
+- DeepEval-derived metric results (faithfulness, answer relevancy, contextual precision/recall)
+- trace spans (`RETRIEVER`, `LLM`) for sample-level debugging
+- tags such as `study_id`, `arm`, and retrieval mode flags
 
 ## Project Structure
 
@@ -90,12 +109,6 @@ rag-eval-system/
 │   │   ├── scorers.py        # DeepEval scorers from configs/eval.yaml
 │   │   ├── eval_config.py    # Enabled dataset paths from YAML
 │   │   └── ab_study_config.py # Temporary YAML overrides for A/B arms
-│   │
-│   ├── viz/                  # Visualization tools
-│   │   ├── __init__.py
-│   │   ├── embedding_explorer.py  # UMAP 3D scatter plots
-│   │   └── eval_dashboard.py      # Metric visualization
-│   │
 │   └── data/                 # Data utilities
 │       ├── __init__.py
 │       ├── loaders.py        # MD, code, mermaid file loaders
@@ -114,7 +127,6 @@ rag-eval-system/
 ├── data/
 │   ├── corpus/               # Source documents (MD, code, mermaid)
 │   ├── eval_datasets/        # Ground truth Q&A pairs (JSON/CSV)
-│   └── embeddings/           # Cached embeddings for viz
 │
 ├── docs/
 │   ├── ARCHITECTURE-*.md     # Snapshot diagrams (incl. MLflow + .cursor skills)
@@ -173,15 +185,17 @@ If your cloud judge provider rate-limits, start conservative (slower wall clock,
 - [x] LM Studio chat generation
 - [x] DeepEval judge via provider-configured OpenAI-compatible endpoint (local or cloud)
 - [x] Starter eval dataset (hand-written Q&A pairs)
-- [x] UMAP embedding visualization
+- [ ] Visualization layer (deferred): add a GitNexus-style explorer for repo/RAG debugging ([GitNexus](https://github.com/abhigyanpatwari/GitNexus))
 
-### Phase 2 — Evaluation & Pipeline Tuning (current)
+### Phase 2 — Evaluation & Pipeline Tuning (completed)
 - [x] MLflow-native batch eval (`run_eval.py`, traces, DeepEval scorers; see `docs/eval-registry.md`)
 - [x] Synthetic eval data generation (corpus-grounded Q&A pairs)
 - [x] Judge model comparison (devstral-small vs GPT-4o-mini)
 - [x] System prompt grounding upgrade (explicit faithfulness constraints)
 - [x] Chunk size tuning (512 → 1024 for markdown, see `docs/rag-improvements-2026-03-24.md`)
 - [x] Query-time retrieval deduplication (text-hash in retriever)
+- [x] Legacy eval registry and report pipeline removed (replaced by MLflow UI + run tags)
+- [x] Fixed-N A/B study orchestration via MLflow-tagged runs (`run_ab_study.py`)
 - [ ] Custom G-Eval metrics for code/diagram accuracy
 - [ ] Arize Phoenix integration for cluster analysis
 - [ ] Annotation workflow for expanding eval datasets
