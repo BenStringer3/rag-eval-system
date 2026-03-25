@@ -46,6 +46,46 @@ Requires **scipy** (`pip install -e '.[dev]'`). Compares **run-level** means for
 
 Use `--paired` only when runs are intentionally paired in order (same length). Default is Welch’s t-test (unpaired, unequal variance).
 
+## A/B study (orchestrated)
+
+Agents: see [`.cursor/skills/science-loop/SKILL.md`](../.cursor/skills/science-loop/SKILL.md) (science loop).
+
+Automated A/B runs write under `artifacts/ab_study/<study_id>/` (`study_meta.json`, `manifest.jsonl`, `eval_runs/<UTC>/`). Successful runs are ingested into the registry unless `--no-ingest`.
+
+**Fixed-N (recommended for interpretable p-values):**
+
+```bash
+.venv/bin/python scripts/run_ab_study.py \
+  --dataset data/eval_datasets/synthetic.json \
+  --arm-a-label "dense (hybrid off)" --arm-b-label "hybrid on" \
+  --arm-a-overrides-json '{"retrieval.hybrid.enabled": false}' \
+  --arm-b-overrides-json '{"retrieval.hybrid.enabled": true}' \
+  --pairing paired --n-per-arm 5 \
+  --max-concurrent 1 --judge-throttle-seconds 5
+```
+
+**Exploratory sequential** (peek after each block; inflates Type I error—label analysis exploratory):
+
+```bash
+.venv/bin/python scripts/run_ab_study.py \
+  --dataset data/eval_datasets/starter.json \
+  --arm-a-label "dense (hybrid off)" --arm-b-label "hybrid on" \
+  --arm-a-overrides-json '{"retrieval.hybrid.enabled": false}' \
+  --arm-b-overrides-json '{"retrieval.hybrid.enabled": true}' \
+  --pairing paired --exploratory \
+  --min-per-arm 2 --max-per-arm 10 --alpha 0.05 \
+  --primary-metric pass_rate
+```
+
+**Report** (Plotly HTML under `docs/_figures/ab-study-<study_id>/`, markdown in `docs/`):
+
+```bash
+.venv/bin/python scripts/render_ab_study_report.py \
+  --study-dir artifacts/ab_study/<study_id>
+```
+
+Failed eval subprocesses are logged in `manifest.jsonl` with `status: failed`; optional `--retries` repeats an arm. Do not ingest incomplete run folders.
+
 ## Variance and multi-run workflow
 
 Judge and generator noise still apply; the registry helps **filter and aggregate**, not remove variance. For medians without SQL, see [`scripts/summarize_eval_runs.py`](../scripts/summarize_eval_runs.py) and [determinism-2026-03-24.md](determinism-2026-03-24.md).

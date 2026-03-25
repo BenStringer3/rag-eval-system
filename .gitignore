@@ -31,6 +31,9 @@ data/embeddings/umap_cache/
 # Batch eval reports (scripts/run_eval_report.py)
 artifacts/eval_runs/
 
+# A/B studies (scripts/run_ab_study.py)
+artifacts/ab_study/
+
 # OS
 .DS_Store
 Thumbs.db
