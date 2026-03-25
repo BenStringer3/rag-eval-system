@@ -45,7 +45,7 @@ Agent workflows (skills / commands) are mapped in [docs/ARCHITECTURE-2026-03-25T
 bash scripts/setup_lm_studio.sh
 # Then load embedding + chat models, e.g.:
 #   lms load text-embedding-nomic-embed-text-v1.5 -y
-#   lms load qwen/qwen3-14b -y
+#   lms load mistralai/devstral-small-2-2512 -y
 #   lms ps
 
 # 1. Install dependencies
@@ -117,8 +117,12 @@ rag-eval-system/
 ├── tests/                    # DeepEval test suites
 │   ├── conftest.py           # Shared fixtures (pipeline, datasets)
 │   ├── test_retrieval.py     # Retriever-focused evals
+│   ├── test_retrieval_tracing.py  # MLflow trace verification
 │   ├── test_generation.py    # Generator-focused evals
-│   └── test_e2e.py           # End-to-end RAG evals
+│   ├── test_scorers.py       # Scorer construction tests
+│   ├── test_mlflow_datasets.py    # Dataset adapter tests
+│   ├── test_eval_config.py   # Eval config loading tests
+│   └── test_ab_study_config.py    # A/B study YAML override tests
 │
 ├── configs/
 │   ├── default.yaml          # Default pipeline config
@@ -144,16 +148,17 @@ rag-eval-system/
 
 ## Judge Provider (Local or Cloud)
 
-DeepEval judge calls are configured in `configs/eval.yaml` under `judge`.
+DeepEval judge calls are configured in `configs/eval.yaml` under `judge`. The `judge.model`
+field uses MLflow's model URI format — no separate `provider` field.
 
 - Cloud judge (current default):
-  - `judge.provider: "openai"`
-  - `judge.model: "gpt-4o-mini"`
+  - `judge.model: "openai:/gpt-4o"`
   - `judge.openai.base_url: "https://api.openai.com/v1"`
   - `judge.openai.api_key_env: "OPENAI_API_KEY"`
-- Local judge (switch back later):
-  - set `judge.provider: "local"`
-  - set `judge.model` to your loaded LM Studio judge model id
+- Local judge (via LM Studio):
+  - set `judge.model` to an MLflow URI matching your loaded model, e.g. `"openai:/mistralai/devstral-small-2-2512"`
+  - set `judge.openai.base_url` to `"http://localhost:1234/v1"`
+  - set `judge.openai.api_key` to `"lm-studio"`
 
 Judge outputs must be valid for DeepEval's native parsing path. This repo intentionally does
 not apply model-specific sanitizers or JSON compatibility shims; if a judge model emits
@@ -165,13 +170,6 @@ Example env setup for cloud judge:
 export OPENAI_API_KEY="your-key"
 # Eval runs log directly to MLflow; expect many minutes even on the starter dataset.
 .venv/bin/python scripts/run_eval.py --dataset data/eval_datasets/starter.json
-```
-
-If your cloud judge provider rate-limits, start conservative (slower wall clock, fewer 429s):
-
-```bash
-.venv/bin/python scripts/run_eval.py \
-  --dataset data/eval_datasets/starter.json
 ```
 
 ## Phase Roadmap
@@ -190,7 +188,7 @@ If your cloud judge provider rate-limits, start conservative (slower wall clock,
 ### Phase 2 — Evaluation & Pipeline Tuning (completed)
 - [x] MLflow-native batch eval (`run_eval.py`, traces, DeepEval scorers; see `docs/mlflow-eval-tracking.md`)
 - [x] Synthetic eval data generation (corpus-grounded Q&A pairs)
-- [x] Judge model comparison (devstral-small vs GPT-4o-mini)
+- [x] Judge model comparison (devstral-small vs GPT-4o-mini; upgraded default to GPT-4o)
 - [x] System prompt grounding upgrade (explicit faithfulness constraints)
 - [x] Chunk size tuning (512 → 1024 for markdown, see `docs/rag-improvements-2026-03-24.md`)
 - [x] Query-time retrieval deduplication (text-hash in retriever)
