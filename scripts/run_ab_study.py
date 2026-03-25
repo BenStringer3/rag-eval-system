@@ -12,6 +12,7 @@ from typing import Any
 
 import mlflow
 import pandas as pd
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -60,6 +61,11 @@ def _parse_overrides_json(raw: str) -> dict[str, Any]:
     return value
 
 
+def _load_yaml(path: Path) -> dict[str, Any]:
+    with open(path, encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
 def _predict_fn(pipeline: RAGPipeline):
     def predict(question: str) -> str:
         return pipeline.query(question).answer
@@ -95,9 +101,14 @@ def _run_arm(
     dataset_name: str,
     scorers,
     thresholds: dict[str, float],
+    judge_model: str | None,
 ) -> tuple[str, float]:
     cfg_path = ROOT / "artifacts" / "ab_study" / study_id / "configs" / f"{arm_key}.yaml"
     write_yaml_with_overrides(args.base_config, cfg_path, overrides=overrides)
+    rag_cfg = _load_yaml(cfg_path)
+    gen_cfg = rag_cfg.get("generation") or {}
+    retrieval_cfg = rag_cfg.get("retrieval") or {}
+    hybrid_cfg = retrieval_cfg.get("hybrid") or {}
     pipeline = RAGPipeline.from_config(str(cfg_path))
     if args.ingest:
         pipeline.ingest(str(args.corpus_dir))
@@ -116,6 +127,15 @@ def _run_arm(
                 "eval.dataset_name": dataset_name,
                 "eval.dataset_path": str(args.dataset.resolve()),
                 "rag.config_path": str(cfg_path.resolve()),
+                "rag.eval_config_path": str(args.eval_config.resolve()),
+                "rag.retrieval.hybrid_enabled": str(bool(hybrid_cfg.get("enabled", False))).lower(),
+            }
+        )
+        mlflow.log_params(
+            {
+                "generation_model": gen_cfg.get("model"),
+                "judge_model": judge_model,
+                "retrieval_top_k": retrieval_cfg.get("top_k"),
             }
         )
         result = mlflow.genai.evaluate(
@@ -154,6 +174,7 @@ def main() -> int:
     eval_rows = load_mlflow_eval_data(args.dataset)
     scorers = build_scorers(args.eval_config)
     thresholds = metric_thresholds(eval_cfg)
+    judge_model = (eval_cfg.get("judge") or {}).get("model")
 
     manifest: list[dict[str, Any]] = []
     if args.pairing == "paired":
@@ -173,6 +194,7 @@ def main() -> int:
                     dataset_name=dataset.name,
                     scorers=scorers,
                     thresholds=thresholds,
+                    judge_model=judge_model,
                 )
                 manifest.append(
                     {"block": block, "arm": arm_key, "run_id": run_id, "pass_rate": pass_rate}
@@ -195,6 +217,7 @@ def main() -> int:
                     dataset_name=dataset.name,
                     scorers=scorers,
                     thresholds=thresholds,
+                    judge_model=judge_model,
                 )
                 manifest.append({"arm": arm_key, "run_id": run_id, "pass_rate": pass_rate})
                 print(f"arm={arm_key} run_id={run_id} pass_rate={pass_rate:.3f}")

@@ -16,7 +16,7 @@ def test_build_scorers_and_thresholds(monkeypatch, tmp_path: Path) -> None:
     eval_config.write_text(
         """
 judge:
-  model: "openai:/gpt-4o-mini"
+  model: "openai:/gpt-4o"
   openai:
     base_url: "https://api.openai.com/v1"
     api_key_env: "OPENAI_API_KEY"

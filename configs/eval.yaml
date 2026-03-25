@@ -7,9 +7,10 @@ tracking:
 
 judge:
   # Native MLflow judge URI. Examples:
+  # - openai:/gpt-4o
   # - openai:/gpt-4o-mini-2024-07-18
   # - openai:/mistralai/devstral-small-2-2512 (with LM Studio base_url below)
-  model: "openai:/gpt-4o-mini-2024-07-18"
+  model: "openai:/gpt-4o"
   openai:
     # OpenAI-compatible endpoint used by MLflow DeepEval scorers.
     base_url: "https://api.openai.com/v1"
