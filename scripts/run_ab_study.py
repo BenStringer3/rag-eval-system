@@ -43,7 +43,12 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--arm-b-overrides-json", type=str, required=True)
     p.add_argument("--pairing", choices=("none", "paired"), default="paired")
     p.add_argument("--n-per-arm", type=int, required=True)
-    p.add_argument("--ingest", action="store_true")
+    p.add_argument(
+        "--ingest",
+        action="store_true",
+        default=False,
+        help="Re-ingest corpus before each arm run (default: off). Leave unset for A/B so index and corpus stay fixed across arms.",
+    )
     p.add_argument("--corpus-dir", type=Path, default=ROOT / "data" / "corpus")
     return p.parse_args()
 
