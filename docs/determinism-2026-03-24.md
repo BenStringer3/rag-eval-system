@@ -23,7 +23,7 @@ done
 ```
 
 Use the MLflow UI or `mlflow.search_runs()` to compare the runs. The tracking backend
-is now `sqlite:///data/mlflow.db`; see [eval-registry.md](eval-registry.md).
+is now `sqlite:///data/mlflow.db`; see [mlflow-eval-tracking.md](mlflow-eval-tracking.md).
 
 ---
 

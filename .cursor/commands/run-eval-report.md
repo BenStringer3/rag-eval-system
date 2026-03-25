@@ -31,4 +31,5 @@ Optional re-ingest before eval:
 ## Related
 
 - **A/B studies:** [`.cursor/skills/science-loop/SKILL.md`](../skills/science-loop/SKILL.md) → `scripts/run_ab_study.py`
-- **MLflow tracking:** [`.cursor/skills/eval-registry/SKILL.md`](../skills/eval-registry/SKILL.md)
+- **MLflow (run + UI):** [`.cursor/skills/mlflow-eval/SKILL.md`](../skills/mlflow-eval/SKILL.md) · **Query store:** [`.cursor/skills/mlflow/SKILL.md`](../skills/mlflow/SKILL.md)
+- **Interpret results:** [`.cursor/commands/analyze-eval-run.md`](../commands/analyze-eval-run.md) → `rag-eval-runs` skill

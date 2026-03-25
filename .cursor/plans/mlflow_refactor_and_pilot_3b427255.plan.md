@@ -27,7 +27,7 @@ todos:
     content: Delete runner.py, metrics.py, judge.py, report.py, registry_db/ingest/stats.py, 5 old scripts
     status: pending
   - id: update-docs
-    content: Update eval-registry skill, science-loop skill, run-eval-report skill, docs/eval-registry.md
+    content: Update mlflow-eval skill, science-loop skill, run-eval-report skill, docs/mlflow-eval-tracking.md
     status: pending
   - id: architecture-doc
     content: Write docs/ARCHITECTURE-<timestamp>.md with updated class, architecture, and sequence diagrams
@@ -418,10 +418,10 @@ If the auto-extraction doesn't work, add a thin adapter that explicitly passes `
 
 ### 9. Update skills and docs
 
-- Rewrite `[.cursor/skills/eval-registry/SKILL.md](.cursor/skills/eval-registry/SKILL.md)` for MLflow
+- Rewrite `[.cursor/skills/mlflow-eval/SKILL.md](.cursor/skills/mlflow-eval/SKILL.md)` for MLflow
 - Update `[.cursor/skills/science-loop/SKILL.md](.cursor/skills/science-loop/SKILL.md)` for `mlflow.genai.evaluate()` flow
 - Update `[.cursor/skills/run-eval-report/SKILL.md](.cursor/skills/run-eval-report/SKILL.md)` for the new `run_eval.py`
-- Update `[docs/eval-registry.md](docs/eval-registry.md)`
+- Update `[docs/mlflow-eval-tracking.md](docs/mlflow-eval-tracking.md)`
 
 ### 10. Write architecture document
 

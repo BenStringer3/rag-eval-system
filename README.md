@@ -130,7 +130,7 @@ rag-eval-system/
 │
 ├── docs/
 │   ├── ARCHITECTURE-*.md     # Snapshot diagrams (incl. MLflow + .cursor skills)
-│   ├── eval-registry.md      # MLflow tracking quick reference
+│   ├── mlflow-eval-tracking.md  # MLflow tracking quick reference
 │   └── DECISIONS.md          # Architecture decision log
 │
 ├── scripts/
@@ -188,7 +188,7 @@ If your cloud judge provider rate-limits, start conservative (slower wall clock,
 - [ ] Visualization layer (deferred): add a GitNexus-style explorer for repo/RAG debugging ([GitNexus](https://github.com/abhigyanpatwari/GitNexus))
 
 ### Phase 2 — Evaluation & Pipeline Tuning (completed)
-- [x] MLflow-native batch eval (`run_eval.py`, traces, DeepEval scorers; see `docs/eval-registry.md`)
+- [x] MLflow-native batch eval (`run_eval.py`, traces, DeepEval scorers; see `docs/mlflow-eval-tracking.md`)
 - [x] Synthetic eval data generation (corpus-grounded Q&A pairs)
 - [x] Judge model comparison (devstral-small vs GPT-4o-mini)
 - [x] System prompt grounding upgrade (explicit faithfulness constraints)

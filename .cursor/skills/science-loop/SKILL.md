@@ -1,6 +1,6 @@
 ---
 name: science-loop
-description: Eval "science loop" in rag-eval-system — run hypothesis-driven experiments with `scripts/run_ab_study.py` or repeated `scripts/run_eval.py` runs, using MLflow tags and traces as the system of record. Use when the user asks to test a hypothesis with repeated eval runs, run an A/B study, or compare two retrieval/generation configurations.
+description: Eval "science loop" in rag-eval-system — run hypothesis-driven experiments with `scripts/run_ab_study.py` or repeated `scripts/run_eval.py` runs. Source run lists, tags, and metrics from MLflow (sqlite:///data/mlflow.db); use .cursor/skills/mlflow/SKILL.md for SQL/API queries. Use when the user asks to test a hypothesis with repeated eval runs, run an A/B study, or compare two retrieval/generation configurations.
 ---
 
 # Science loop skill
@@ -50,7 +50,7 @@ Choose the runner based on whether the hypothesis can be expressed with the exis
 
 ### Path A — use the built-in 2‑arm orchestrator (current: hybrid on/off)
 
-Use this when the treatment/control differ by a config override that can be expressed as dotted-key YAML changes. Artifacts live under `artifacts/ab_study/<study_id>/` (`study_meta.json`, `manifest.json`), but MLflow is the source of truth.
+Use this when the treatment/control differ by a config override that can be expressed as dotted-key YAML changes. The orchestrator still writes a small **reproducibility** tree under `artifacts/ab_study/<study_id>/` (`study_meta.json`, `manifest.json`, per-arm YAML under `configs/`). That is *not* the old `artifacts/eval_runs/` report layout (retired in favor of MLflow). For **which runs exist, tags, metrics, and comparisons**, query **MLflow** via the Tracking API or SQL on `data/mlflow.db` — follow [`.cursor/skills/mlflow/SKILL.md`](../mlflow/SKILL.md).
 
 #### Fixed‑N (preferred for interpretable p-values)
 
@@ -73,7 +73,7 @@ If the hypothesis is about *any other* config change, run repeated evals yoursel
 
 - Create **two temporary config variants** (control/treatment) without changing repo defaults.
 - Run enough replicates per arm via `scripts/run_eval.py` or `scripts/run_ab_study.py`.
-- Compare arms with MLflow run filtering and exported metrics.
+- Compare arms by querying MLflow (see [`.cursor/skills/mlflow/SKILL.md`](../mlflow/SKILL.md)); do not rely on artifact JSON for metric aggregates.
 - Produce a short written report with the primary result and any caveats about judge variance.
 
 ### Failures and judge limits (applies to all paths)
@@ -83,14 +83,17 @@ If the hypothesis is about *any other* config change, run repeated evals yoursel
 
 ## Related
 
-- MLflow tracking: [`.cursor/skills/eval-registry/SKILL.md`](../eval-registry/SKILL.md), [docs/eval-registry.md](docs/eval-registry.md).
+- **Querying runs/metrics/tags (SQL or API):** [`.cursor/skills/mlflow/SKILL.md`](../mlflow/SKILL.md)
+- Run evals / UI: [`.cursor/skills/mlflow-eval/SKILL.md`](../mlflow-eval/SKILL.md) · Query runs: [`.cursor/skills/mlflow/SKILL.md`](../mlflow/SKILL.md) · [docs/mlflow-eval-tracking.md](../../../docs/mlflow-eval-tracking.md).
 - Single eval runs: [`.cursor/skills/run-eval-report/SKILL.md`](../run-eval-report/SKILL.md).
-- Variance: [docs/determinism-2026-03-24.md](docs/determinism-2026-03-24.md).
+- Deep-dive one run (failures, traces): [`.cursor/skills/rag-eval-runs/SKILL.md`](../rag-eval-runs/SKILL.md) · [`.cursor/commands/analyze-eval-run.md`](../../commands/analyze-eval-run.md).
+- Variance: [docs/determinism-2026-03-24.md](../../../docs/determinism-2026-03-24.md).
 
 ## Rules for agents
 
+- **Treat MLflow as the data plane** for post-hoc analysis: list runs, read `pass_rate` and other metrics, and filter by `study_id` / `arm` / dataset tags using the [mlflow skill](../mlflow/SKILL.md) (SQLite or `mlflow.search_runs`). Use `artifacts/ab_study/` only for the orchestrator’s saved configs and sidecar metadata (still emitted by `run_ab_study.py`); do not use it as the metrics store, and do not point people at `artifacts/eval_runs/` for eval output.
 - Ask clarifying questions first; do not start running evals until the hypothesis, arms, primary metric, and stopping rule are specified.
 - Prefer **fixed‑N** when the user wants “proof”; label **exploratory** when doing any sequential peeking.
 - Keep the experiment to **one primary comparison**; if multiple metrics are reported, explicitly mark non-primary metrics exploratory.
 - Poll long runs; do not assume hang after a short idle.
-- When using the orchestrator, capture the printed `study_id` and inspect runs with `tags.study_id`.
+- When using the orchestrator, capture the printed `study_id` (and the `mlflow_filter=tags.study_id = '…'` line) and inspect runs with that filter so studies do not get mixed in the UI or in `search_runs`. Optionally pass `--study-id` to `scripts/run_ab_study.py` for a human-readable id. Query patterns: [`.cursor/skills/mlflow/SKILL.md`](../mlflow/SKILL.md).

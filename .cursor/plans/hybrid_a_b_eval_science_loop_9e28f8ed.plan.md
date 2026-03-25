@@ -12,7 +12,7 @@ todos:
     content: "Add scripts/render_hybrid_ab_report.py: Plotly figures to docs/_figures/..., hybrid-ab-<id>.md with methods + tables + Mermaid"
     status: pending
   - id: docs-skill
-    content: Link workflow from docs/eval-registry.md and eval-registry SKILL.md
+    content: Link workflow from docs/mlflow-eval-tracking.md and mlflow-eval SKILL.md
     status: pending
   - id: orchestrator-errors
     content: "Orchestrator: non-zero eval exit → manifest failure row, optional --retries; skip ingest unless meta+reports complete"
@@ -105,8 +105,8 @@ Persist a **machine-readable log** alongside artifacts: e.g. `artifacts/ab_study
 
 ### 5. Documentation
 
-- Short section in [docs/eval-registry.md](docs/eval-registry.md) linking the orchestrator + report script and the stopping-rule caveat.
-- Optional one-line in [.cursor/skills/eval-registry/SKILL.md](.cursor/skills/eval-registry/SKILL.md) pointing at the A/B workflow.
+- Short section in [docs/mlflow-eval-tracking.md](docs/mlflow-eval-tracking.md) linking the orchestrator + report script and the stopping-rule caveat.
+- Optional one-line in [.cursor/skills/mlflow-eval/SKILL.md](.cursor/skills/mlflow-eval/SKILL.md) pointing at the A/B workflow.
 
 ## Testing
 

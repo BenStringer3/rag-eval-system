@@ -5,6 +5,8 @@ description: Interprets MLflow-backed RAG evaluation runs produced by scripts/ru
 
 # RAG eval runs (MLflow)
 
+**Cursor entrypoint:** [`.cursor/commands/analyze-eval-run.md`](../../commands/analyze-eval-run.md) — when that command is used, follow this skill end-to-end.
+
 ## Run layout
 
 After `python scripts/run_eval.py`:
@@ -61,3 +63,9 @@ When the user asks for a visual, use **Mermaid** (`flowchart` or `flowchart TB`)
 - **Broad question (“What is this project about?”) + gold describing only RAG eval** but **retrieval returns another large topic** (e.g. streaming setup) → **contextual recall** collapses (gold facts absent from chunks); relevancy may pass weakly while the answer follows retrieved text (**faithfulness** can still be “ok” relative to wrong chunks). Fix is primarily **retrieval/corpus**, not the judge.
 
 When explaining a specific run, cite **`sample_id`**, the **query**, and the relevant MLflow trace span or scorer rationale.
+
+## Related
+
+- **Find / filter runs (SQL, `search_runs`):** [`.cursor/skills/mlflow/SKILL.md`](../mlflow/SKILL.md)
+- **Run new evals or start the UI:** [`.cursor/skills/mlflow-eval/SKILL.md`](../mlflow-eval/SKILL.md) · [docs/mlflow-eval-tracking.md](../../../docs/mlflow-eval-tracking.md)
+- **A/B workflow and study rigor:** [`.cursor/skills/science-loop/SKILL.md`](../science-loop/SKILL.md)
