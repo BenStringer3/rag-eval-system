@@ -61,6 +61,11 @@ To confirm retrieval context wiring after a run:
 3. Confirm its outputs contain chunk payloads with `page_content`.
 4. Confirm scorer results are present on the same eval run.
 
-## Cursor skill
+## Cursor skills (agents)
 
-Agents: see [`.cursor/skills/eval-registry/SKILL.md`](../.cursor/skills/eval-registry/SKILL.md) and [`.cursor/skills/science-loop/SKILL.md`](../.cursor/skills/science-loop/SKILL.md).
+- [`.cursor/skills/eval-registry/SKILL.md`](../.cursor/skills/eval-registry/SKILL.md) — MLflow UI, DB, tags
+- [`.cursor/skills/run-eval-report/SKILL.md`](../.cursor/skills/run-eval-report/SKILL.md) — run `scripts/run_eval.py`
+- [`.cursor/skills/rag-eval-runs/SKILL.md`](../.cursor/skills/rag-eval-runs/SKILL.md) — interpret metrics and traces
+- [`.cursor/skills/science-loop/SKILL.md`](../.cursor/skills/science-loop/SKILL.md) — `scripts/run_ab_study.py`, experiment rigor
+
+Architecture diagram including these paths: [docs/ARCHITECTURE-2026-03-25T103050Z.md](ARCHITECTURE-2026-03-25T103050Z.md) (section *Cursor skills and commands*).

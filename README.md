@@ -1,6 +1,7 @@
 # RAG Evaluation System
 
-A local-first RAG system with evaluation infrastructure built on DeepEval.
+A local-first RAG system with **MLflow-backed** evaluation: `mlflow.genai.evaluate()` drives batched runs, **DeepEval scorers** (judge-backed) score each sample, and **traced** retriever / LLM spans capture context for metrics and debugging.
+
 Designed for iterative improvement — start simple, measure everything, upgrade methodically.
 
 ## Architecture
@@ -11,26 +12,27 @@ Designed for iterative improvement — start simple, measure everything, upgrade
 │                                                         │
 │  Documents ──► Chunker ──► Embedder ──► Vector Store    │
 │                               │                         │
-│  Query ──► Embed Query ───────┤                         │
+│  Query ──► Embed Query ───────┤  (optional BM25 hybrid) │
 │                               ▼                         │
 │                          Retriever ──► Generator ──► Out │
 └─────────────────────────────────────────────────────────┘
         │                                        │
         ▼                                        ▼
 ┌─────────────────────────────────────────────────────────┐
-│                  Evaluation Layer                        │
+│           Evaluation (MLflow + DeepEval scorers)         │
 │                                                         │
-│  DeepEval Metrics:                                      │
-│    • Faithfulness    • Answer Relevancy                 │
-│    • Context Recall  • Context Precision                │
-│    • Custom G-Eval metrics (your annotations)           │
+│  scripts/run_eval.py  ──►  mlflow.genai.evaluate()     │
+│    • Faithfulness, answer relevancy                     │
+│    • Contextual precision / recall                        │
+│    • Logs: pass_rate, traces (RETRIEVER, LLM), UI       │
 │                                                         │
-│  Visualization:                                         │
-│    • UMAP 3D embedding plots                            │
-│    • Retrieval overlap heatmaps                         │
-│    • Per-metric cluster analysis (via Phoenix)          │
+│  Tracking: sqlite:///data/mlflow.db  →  mlflow ui       │
+│                                                         │
+│  Visualization (separate): UMAP embedding explorer     │
 └─────────────────────────────────────────────────────────┘
 ```
+
+Agent workflows (skills / commands) are mapped in [docs/ARCHITECTURE-2026-03-25T103050Z.md](docs/ARCHITECTURE-2026-03-25T103050Z.md).
 
 ## Requirements
 
@@ -83,12 +85,11 @@ rag-eval-system/
 │   │   ├── pipeline.py       # End-to-end RAG orchestration
 │   │   └── ingest.py         # Corpus ingestion CLI
 │   │
-│   ├── eval/                 # Evaluation infrastructure
-│   │   ├── __init__.py
-│   │   ├── metrics.py        # Custom DeepEval metrics
-│   │   ├── datasets.py       # Eval dataset loading/management
-│   │   ├── runner.py         # Evaluation orchestration
-│   │   └── report.py         # Results aggregation & export
+│   ├── eval/                 # Eval adapters for MLflow (no local report/registry)
+│   │   ├── datasets.py       # JSON datasets → MLflow eval rows
+│   │   ├── scorers.py        # DeepEval scorers from configs/eval.yaml
+│   │   ├── eval_config.py    # Enabled dataset paths from YAML
+│   │   └── ab_study_config.py # Temporary YAML overrides for A/B arms
 │   │
 │   ├── viz/                  # Visualization tools
 │   │   ├── __init__.py
@@ -116,11 +117,14 @@ rag-eval-system/
 │   └── embeddings/           # Cached embeddings for viz
 │
 ├── docs/
+│   ├── ARCHITECTURE-*.md     # Snapshot diagrams (incl. MLflow + .cursor skills)
+│   ├── eval-registry.md      # MLflow tracking quick reference
 │   └── DECISIONS.md          # Architecture decision log
 │
 ├── scripts/
 │   ├── setup_lm_studio.sh    # LM Studio server + load-model hints
-│   └── generate_eval_data.py # Synthetic eval data generation
+│   ├── run_eval.py           # Standalone eval → MLflow
+│   └── run_ab_study.py       # Fixed-N two-arm studies → MLflow tags
 │
 ├── pyproject.toml
 └── README.md
@@ -172,6 +176,7 @@ If your cloud judge provider rate-limits, start conservative (slower wall clock,
 - [x] UMAP embedding visualization
 
 ### Phase 2 — Evaluation & Pipeline Tuning (current)
+- [x] MLflow-native batch eval (`run_eval.py`, traces, DeepEval scorers; see `docs/eval-registry.md`)
 - [x] Synthetic eval data generation (corpus-grounded Q&A pairs)
 - [x] Judge model comparison (devstral-small vs GPT-4o-mini)
 - [x] System prompt grounding upgrade (explicit faithfulness constraints)
@@ -186,7 +191,7 @@ If your cloud judge provider rate-limits, start conservative (slower wall clock,
 - [ ] Tree-sitter AST-aware code chunking (candidates: chonkie `CodeChunker`, `treesitter-chunker`)
 - [ ] Semantic chunking for prose documents (chonkie `SemanticChunker` or LlamaIndex)
 - [ ] Section-aware markdown chunking (heading-preserving, sub-chunk header prepend)
-- [ ] Hybrid search (dense + BM25 sparse)
+- [x] Hybrid search (dense + BM25 sparse, RRF; `retrieval.hybrid` in `configs/default.yaml`)
 - [ ] HyDE (Hypothetical Document Embeddings)
 - [ ] Cross-encoder reranking
 - [ ] Merkle tree content hashing for incremental updates
