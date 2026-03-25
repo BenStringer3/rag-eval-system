@@ -1,6 +1,6 @@
 ---
 name: eval-registry
-description: Ingests and queries the SQLite eval registry (data/eval_registry.db) from meta.json and report.json under artifacts/eval_runs; compares run groups with compare_eval_configs.py; backfill, hybrid_enabled, t-tests. Use when the user mentions eval registry, ingest eval runs, SQLite eval history, eval_registry.db, query registry, compare eval configs, or statistical comparison of eval runs.
+description: Ingests and queries the SQLite eval registry (data/eval_registry.db) from meta.json and report.json under artifacts/eval_runs; compares run groups with compare_eval_configs.py; backfill, hybrid_enabled, t-tests. For dense-vs-hybrid orchestration and Plotly reports, use the science-loop skill. Triggers eval registry, ingest eval runs, SQLite eval history, eval_registry.db, query registry, compare eval configs, statistical comparison of eval runs.
 ---
 
 # Eval registry skill
@@ -13,6 +13,7 @@ The registry is a **queryable index** over timestamped eval folders. Full artifa
 - **Ingest:** `scripts/ingest_eval_registry.py`
 - **Query:** `scripts/query_eval_registry.py`
 - **Stats (t-test):** `scripts/compare_eval_configs.py` (needs **scipy** — `pip install -e '.[dev]'`)
+- **Science loop (A/B studies):** see [`.cursor/skills/science-loop/SKILL.md`](../science-loop/SKILL.md) — `run_ab_study.py` → `render_ab_study_report.py`
 
 ## Commands (use repo venv)
 
