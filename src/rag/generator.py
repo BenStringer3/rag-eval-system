@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
+
+import mlflow
+from mlflow.entities.span import SpanType
 from openai import OpenAI
 
 from src.data.schemas import RAGResult, RetrievedChunk
@@ -34,6 +37,7 @@ class Generator:
     max_tokens: int = 1024
     system_prompt: str = DEFAULT_SYSTEM_PROMPT
 
+    @mlflow.trace(span_type=SpanType.LLM)
     def generate(self, query: str, retrieved_chunks: list[RetrievedChunk]) -> RAGResult:
         """Generate a response grounded in retrieved context.
 

@@ -17,8 +17,9 @@ env/
 *.swp
 *.swo
 
-# Eval registry DB (scripts/ingest_eval_registry.py)
-data/eval_registry.db
+# MLflow tracking
+data/mlflow.db
+mlartifacts/
 
 # Data (large files)
 data/embeddings/
@@ -28,10 +29,7 @@ data/embeddings/umap_cache/
 # DeepEval
 .deepeval/
 
-# Batch eval reports (scripts/run_eval_report.py)
-artifacts/eval_runs/
-
-# A/B studies (scripts/run_ab_study.py)
+# Local study manifests (scripts/run_ab_study.py)
 artifacts/ab_study/
 
 # OS

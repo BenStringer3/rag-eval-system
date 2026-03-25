@@ -8,7 +8,10 @@ from __future__ import annotations
 import hashlib
 import time
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+import mlflow
+from mlflow.entities.span import SpanType
 
 from src.data.schemas import RetrievedChunk
 from src.rag.store import VectorStore
@@ -61,6 +64,22 @@ class Retriever:
         if self.hybrid_enabled:
             return self._retrieve_hybrid(query)
         return self._retrieve_dense_only(query)
+
+    @mlflow.trace(span_type=SpanType.RETRIEVER)
+    def trace_retrieval(self, query: str, chunks: list[RetrievedChunk]) -> list[dict[str, Any]]:
+        """Emit a RETRIEVER span in the format MLflow's scorers expect."""
+        del query
+        return [
+            {
+                "page_content": rc.chunk.text,
+                "metadata": {
+                    "doc_uri": rc.chunk.metadata.source_path,
+                    "chunk_id": rc.chunk.chunk_id,
+                    "score": rc.score,
+                },
+            }
+            for rc in chunks
+        ]
 
     def _retrieve_dense_only(self, query: str) -> RetrieveOutcome:
         t0 = time.perf_counter()

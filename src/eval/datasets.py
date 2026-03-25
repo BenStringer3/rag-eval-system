@@ -1,16 +1,10 @@
-"""Evaluation dataset management.
-
-Loads eval datasets from JSON, converts to DeepEval test cases,
-and provides filtering/sampling utilities.
-"""
+"""Evaluation dataset management."""
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
-
-from deepeval.dataset import EvaluationDataset
-from deepeval.test_case import LLMTestCase
+from typing import Any
 
 from src.data.schemas import EvalDataset, EvalSample
 
@@ -40,48 +34,31 @@ def load_eval_dataset(path: str | Path) -> EvalDataset:
     return EvalDataset(**data)
 
 
-def to_deepeval_test_cases(
-    dataset: EvalDataset,
-    pipeline_fn: callable,
-) -> list[LLMTestCase]:
-    """Convert an EvalDataset to DeepEval test cases by running the pipeline.
+def _sample_to_mlflow_row(dataset: EvalDataset, sample: EvalSample) -> dict[str, Any]:
+    expectations: dict[str, Any] = {
+        "expected_output": sample.expected_answer,
+        "sample_id": sample.id,
+    }
+    if sample.expected_context:
+        expectations["expected_context"] = sample.expected_context
+    if sample.metadata:
+        expectations["metadata"] = sample.metadata
 
-    Args:
-        dataset: The evaluation dataset.
-        pipeline_fn: A callable that takes a query string and returns
-                      (answer: str, retrieval_context: list[str]).
-
-    Returns:
-        List of LLMTestCase objects ready for DeepEval evaluation.
-    """
-    test_cases = []
-
-    for sample in dataset.samples:
-        answer, context = pipeline_fn(sample.query)
-
-        test_case = LLMTestCase(
-            input=sample.query,
-            actual_output=answer,
-            expected_output=sample.expected_answer,
-            retrieval_context=context,
-        )
-        test_cases.append(test_case)
-
-    return test_cases
+    return {
+        "request_id": sample.id,
+        "inputs": {"question": sample.query},
+        "expectations": expectations,
+        "tags": {
+            "dataset_name": dataset.name,
+            "sample_id": sample.id,
+        },
+    }
 
 
-def to_deepeval_dataset(
-    dataset: EvalDataset,
-    pipeline_fn: callable,
-) -> EvaluationDataset:
-    """Convert to a full DeepEval EvaluationDataset.
-
-    This wraps the test cases in DeepEval's dataset container,
-    which provides additional utilities like push/pull from
-    Confident AI (if configured).
-    """
-    test_cases = to_deepeval_test_cases(dataset, pipeline_fn)
-    return EvaluationDataset(test_cases=test_cases)
+def load_mlflow_eval_data(path: str | Path) -> list[dict[str, Any]]:
+    """Load a JSON eval dataset and convert it into MLflow GenAI rows."""
+    dataset = load_eval_dataset(path)
+    return [_sample_to_mlflow_row(dataset, sample) for sample in dataset.samples]
 
 
 def create_starter_dataset() -> EvalDataset:

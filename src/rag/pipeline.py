@@ -184,6 +184,7 @@ class RAGPipeline:
             RAGResult with the generated answer and retrieved context.
         """
         outcome = self.retriever.retrieve_detailed(question)
+        self.retriever.trace_retrieval(question, outcome.chunks)
         result = self.generator.generate(question, outcome.chunks)
         return result.model_copy(update={"retrieval_timings_ms": outcome.timings_ms})
 

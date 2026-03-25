@@ -1,26 +1,21 @@
 # Evaluation Configuration
 
+tracking:
+  # Local MLflow backend for eval runs, traces, and scorer outputs.
+  uri: "sqlite:///data/mlflow.db"
+  experiment: "rag-eval-system"
+
 judge:
-  # Select which endpoint DeepEval uses for metric-judge calls.
-  # - openai: use judge.openai.* (cloud)
-  # - local: use configs/default.yaml -> lm_studio.* (LM Studio)
-  provider: "openai"
-  # Dated snapshot so OpenAI weight rollouts do not silently change judge behavior across weeks.
-  model: "gpt-4o-mini-2024-07-18"
-  # Sampling temperature for judge outputs (0 = greedy).
-  temperature: 0
+  # Native MLflow judge URI. Examples:
+  # - openai:/gpt-4o-mini-2024-07-18
+  # - openai:/mistralai/devstral-small-2-2512 (with LM Studio base_url below)
+  model: "openai:/gpt-4o-mini-2024-07-18"
   openai:
-    # OpenAI API base URL for cloud judge calls.
-    # Keep /v1 suffix because GPTModel forwards this directly to OpenAI client.
+    # OpenAI-compatible endpoint used by MLflow DeepEval scorers.
     base_url: "https://api.openai.com/v1"
-    # Environment variable name containing the OpenAI API key.
-    # Expected in runtime env (for example via .env loading in your shell).
     api_key_env: "OPENAI_API_KEY"
-  # Forwarded to chat.completions.create on every judge call.
-  # Cap completion length to avoid runaway judge responses causing
-  # LengthFinishReasonError in structured parse mode.
-  generation_kwargs:
-    max_completion_tokens: 16000
+    # Optional fallback for local OpenAI-compatible servers like LM Studio.
+    # api_key: "lm-studio"
 
 metrics:
   # Core RAG metrics (DeepEval built-in)
@@ -37,18 +32,8 @@ metrics:
     enabled: true
     threshold: 0.6
 
-  # Custom metrics (extend in src/eval/metrics.py)
-  code_accuracy:
-    enabled: false  # Enable in phase 2
-    threshold: 0.8
-    criteria: "Does the response contain syntactically correct code that matches the query intent?"
-  diagram_fidelity:
-    enabled: false  # Enable in phase 2
-    threshold: 0.7
-    criteria: "Does the response accurately describe the structure/flow shown in the diagram?"
-
 datasets:
-  # Each entry is a JSON file (see data/eval_datasets/*.json). run_eval_report.py runs
+  # Each entry is a JSON file (see data/eval_datasets/*.json). run_eval.py runs
   # every dataset unless --dataset is set. Set enabled: false to skip one.
   starter:
     enabled: false
