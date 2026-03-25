@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
 import yaml
 from mlflow.genai.scorers.base import Scorer
 from mlflow.genai.scorers.deepeval import (
@@ -57,6 +58,18 @@ def metric_thresholds(eval_config: dict[str, Any]) -> dict[str, float]:
     return thresholds
 
 
+def metric_pass_mask(series: pd.Series, threshold: float) -> pd.Series:
+    """Row-wise pass for one `{metric}/value` column from mlflow.genai.evaluate().
+
+    DeepEval scorers set Feedback.value to yes/no; other scorers may log numeric scores.
+    """
+    lowered = series.astype(str).str.strip().str.lower()
+    if len(series) > 0 and bool(lowered.isin(["yes", "no"]).all()):
+        return lowered == "yes"
+    vals = pd.to_numeric(series, errors="coerce")
+    return vals >= float(threshold)
+
+
 def build_scorers(eval_config_path: str | Path) -> list[Scorer]:
     eval_config = load_eval_config(eval_config_path)
     configure_judge_environment(eval_config)
@@ -65,10 +78,11 @@ def build_scorers(eval_config_path: str | Path) -> list[Scorer]:
     if not model_uri:
         raise ValueError(f"judge.model is required in {eval_config_path}")
 
+    thresholds = metric_thresholds(eval_config)
     scorers: list[Scorer] = []
-    for metric_name in metric_thresholds(eval_config):
+    for metric_name, threshold in thresholds.items():
         scorer_cls = _SCORER_FACTORIES[metric_name]
-        scorer = scorer_cls(model=model_uri)
+        scorer = scorer_cls(model=model_uri, threshold=threshold)
         scorer.name = metric_name
         scorers.append(scorer)
     if not scorers:

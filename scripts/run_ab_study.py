@@ -18,7 +18,12 @@ sys.path.insert(0, str(ROOT))
 
 from src.eval.ab_study_config import write_yaml_with_overrides  # noqa: E402
 from src.eval.datasets import load_eval_dataset, load_mlflow_eval_data  # noqa: E402
-from src.eval.scorers import build_scorers, load_eval_config, metric_thresholds  # noqa: E402
+from src.eval.scorers import (  # noqa: E402
+    build_scorers,
+    load_eval_config,
+    metric_pass_mask,
+    metric_thresholds,
+)
 from src.rag.pipeline import RAGPipeline  # noqa: E402
 
 
@@ -64,7 +69,7 @@ def _summarize_results(result_df: pd.DataFrame | None, thresholds: dict[str, flo
     for metric_name, threshold in thresholds.items():
         column = f"{metric_name}/value"
         if column in result_df.columns:
-            passed_columns.append(result_df[column].astype(float) >= threshold)
+            passed_columns.append(metric_pass_mask(result_df[column], threshold))
     if not passed_columns:
         return 0.0
     overall = passed_columns[0]

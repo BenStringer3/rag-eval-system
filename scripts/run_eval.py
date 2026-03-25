@@ -50,7 +50,7 @@ def _summarize_results(
         column = f"{metric_name}/value"
         if column not in result_df.columns:
             continue
-        passed = result_df[column].astype(float) >= threshold
+        passed = metric_pass_mask(result_df[column], threshold)
         per_metric[f"{metric_name}_pass_rate"] = float(passed.mean())
         passed_columns.append(passed)
 
@@ -69,7 +69,12 @@ def main() -> int:
 
     from src.eval.datasets import load_eval_dataset, load_mlflow_eval_data
     from src.eval.eval_config import enabled_dataset_paths
-    from src.eval.scorers import build_scorers, load_eval_config, metric_thresholds
+    from src.eval.scorers import (
+        build_scorers,
+        load_eval_config,
+        metric_pass_mask,
+        metric_thresholds,
+    )
     from src.rag.pipeline import RAGPipeline
 
     eval_cfg = load_eval_config(args.eval_config)

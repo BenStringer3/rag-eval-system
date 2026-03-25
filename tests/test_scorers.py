@@ -5,7 +5,9 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from src.eval.scorers import build_scorers, metric_thresholds
+import pandas as pd
+
+from src.eval.scorers import build_scorers, metric_pass_mask, metric_thresholds
 
 
 def test_build_scorers_and_thresholds(monkeypatch, tmp_path: Path) -> None:
@@ -49,3 +51,11 @@ tracking:
     assert thresholds == {"faithfulness": 0.7, "contextual_precision": 0.6}
     assert os.environ["OPENAI_API_BASE"] == "https://api.openai.com/v1"
     assert os.environ["OPENAI_API_KEY"] == "test-key"
+
+
+def test_metric_pass_mask_categorical_and_numeric() -> None:
+    cat = pd.Series(["yes", "no", "yes"])
+    assert metric_pass_mask(cat, 0.9).tolist() == [True, False, True]
+
+    num = pd.Series([0.8, 0.5, 1.0])
+    assert metric_pass_mask(num, 0.7).tolist() == [True, False, True]
