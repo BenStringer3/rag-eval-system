@@ -18,12 +18,14 @@ Example::
 from __future__ import annotations
 
 import argparse
-import json
 import sqlite3
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+
+sys.path.insert(0, str(ROOT))
+from src.eval.registry_stats import load_metric_values  # noqa: E402
 
 
 def _parse_args() -> argparse.Namespace:
@@ -68,27 +70,6 @@ def _parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def _load_values(
-    conn: sqlite3.Connection,
-    dataset_key: str,
-    metric: str,
-    run_ids: list[str],
-) -> list[float]:
-    out: list[float] = []
-    for rid in run_ids:
-        row = conn.execute(
-            "SELECT mean_scores_json FROM runs WHERE run_id = ? AND dataset_key = ?",
-            (rid.strip(), dataset_key),
-        ).fetchone()
-        if not row:
-            raise SystemExit(f"No run row for run_id={rid!r} dataset_key={dataset_key!r}")
-        ms = json.loads(row[0])
-        if metric not in ms:
-            raise SystemExit(f"Metric {metric!r} not in mean_scores for run {rid}: {list(ms.keys())}")
-        out.append(float(ms[metric]))
-    return out
-
-
 def main() -> int:
     args = _parse_args()
     try:
@@ -109,8 +90,11 @@ def main() -> int:
 
     conn = sqlite3.connect(str(args.db))
     try:
-        va = _load_values(conn, args.dataset, args.metric, group_a)
-        vb = _load_values(conn, args.dataset, args.metric, group_b)
+        try:
+            va = load_metric_values(conn, args.dataset, args.metric, group_a)
+            vb = load_metric_values(conn, args.dataset, args.metric, group_b)
+        except KeyError as e:
+            raise SystemExit(str(e)) from e
     finally:
         conn.close()
 
